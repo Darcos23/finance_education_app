@@ -1,13 +1,10 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
-import { authService, userService } from "../../services";
-
-export default function ProtectedRoute({ children, requireTriage = true }) {
-    const location = useLocation();
-    const user = userService.getCurrentUser();
-
-    if (!authService.isAuthenticated() || !user) return <Navigate to="/login" replace />;
-    if (requireTriage && !user.hasCompletedTriage && location.pathname !== "/triage") return <Navigate to="/triage" replace />;
-
-    return children;
+export default function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <div className="auth-page"><div className="auth-card">Cargando FinPath…</div></div>;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return children;
 }
