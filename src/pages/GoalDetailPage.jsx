@@ -1,130 +1,129 @@
 import { useState } from "react";
+import { ArrowLeft, CheckCircle2, CircleDollarSign, Target } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-
-import Badge from "../components/common/Badge";
-import Button from "../components/common/Button";
-import Card from "../components/common/Card";
+import AppShell from "../components/layout/AppShell";
 import ProgressBar from "../components/common/ProgressBar";
-import MobileShell from "../components/layout/MobileShell";
-import TopBar from "../components/layout/TopBar";
-import { useAppContext } from "../context/AppContext";
-import { goalService } from "../services";
-import { formatCurrencyCOP, getDaysRemaining, getGoalVisualStatus, parseMoneyInput } from "../utils";
+import { useAuth } from "../context/AuthContext";
+import { useApp } from "../context/AppContext";
+import { appService } from "../services/appService";
+
+const money = (value) => `$${Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}`;
 
 export default function GoalDetailPage() {
-    const navigate = useNavigate();
-    const { goalId } = useParams();
-    const { refresh, version } = useAppContext();
-    const goal = goalService.getGoalById(goalId);
-    const [amount, setAmount] = useState("");
-    const [note, setNote] = useState("");
+  const { goalId } = useParams();
+  const { user } = useAuth();
+  const { goals, refresh } = useApp();
+  const navigate = useNavigate();
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
 
-    if (!goal) {
-        return (
-            <MobileShell topBar={<TopBar title="Detalle de meta" />}>
-                <Button variant="ghost" onClick={() => navigate("/goals")}>Volver</Button>
-                <p className="mt-4 rounded-3xl bg-red-50 p-4 text-sm font-black text-red-700">No se encontro la meta.</p>
-            </MobileShell>
-        );
+  const goal = goals.find((item) => item.id === goalId);
+  if (!goal) return <AppShell><div className="empty">Meta no encontrada.</div></AppShell>;
+
+  const target = ["saving_amount", "expense_limit"].includes(goal.type)
+    ? Number(goal.target_amount || 0)
+    : Number(goal.target_value || 0);
+  const current = ["saving_amount", "expense_limit"].includes(goal.type)
+    ? Number(goal.current_amount || 0)
+    : Number(goal.current_value || 0);
+  const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+
+  const presentation = (() => {
+    if (goal.type === "saving_amount") return {
+      title: "Registrar ahorro",
+      help: "Añade cuánto avanzaste hacia tu meta.",
+      action: "Guardar aporte",
+      input: true,
+      currentLabel: money(current),
+      targetLabel: money(target),
+    };
+    if (goal.type === "expense_limit") return {
+      title: "Registrar gasto",
+      help: "Añade un gasto para observar cuánto del límite ya utilizaste.",
+      action: "Guardar gasto",
+      input: true,
+      currentLabel: `${money(current)} usados`,
+      targetLabel: `Límite ${money(target)}`,
+    };
+    if (goal.type === "habit_streak") return {
+      title: "Registrar día cumplido",
+      help: "Marca un día cuando hayas realizado el hábito propuesto.",
+      action: "Marcar hoy como cumplido",
+      input: false,
+      currentLabel: `${current} días`,
+      targetLabel: `${target} días`,
+    };
+    return {
+      title: "Progreso automático",
+      help: "Esta meta avanza cuando completas lecciones dentro de FinPath.",
+      action: null,
+      input: false,
+      currentLabel: `${current} lecciones`,
+      targetLabel: `${target} lecciones`,
+    };
+  })();
+
+  const add = async (event) => {
+    event?.preventDefault?.();
+    setBusy(true);
+    try {
+      await appService.addGoalProgress(user, goal, presentation.input ? amount : 1);
+      setAmount("");
+      await refresh();
+    } finally {
+      setBusy(false);
     }
+  };
 
-    const visual = getGoalVisualStatus(goal);
+  const danger = goal.type === "expense_limit" && target > 0 && current > target;
 
-    const contribution = (event) => {
-        event.preventDefault();
-        const value = parseMoneyInput(amount);
-        if (!value) return;
-        goalService.addContribution(goal.id, { type: goal.type === "expense_limit" ? "expense_record" : "money", amount: value, note });
-        setAmount("");
-        setNote("");
-        refresh();
-    };
+  return (
+    <AppShell>
+      <button className="icon-btn" onClick={() => navigate("/goals")} aria-label="Volver a metas"><ArrowLeft /></button>
 
-    const toggleMilestone = (id) => {
-        goalService.completeMilestone(goal.id, id);
-        refresh();
-    };
-
-    const removeGoal = () => {
-        goalService.deleteGoal(goal.id);
-        refresh();
-        navigate("/goals");
-    };
-
-    return (
-        <MobileShell topBar={<TopBar title="Detalle de meta" />}>
-            <div key={version}>
-                <Button variant="ghost" onClick={() => navigate("/goals")}>Volver a metas</Button>
-                <Card className="mt-4">
-                    <div className="text-center">
-                        <Badge label={visual.label} variant={visual.variant} />
-                        <h2 className="mt-3 text-2xl font-black">{goal.title}</h2>
-                        <p className="mt-2 text-sm text-slate-600">{goal.description}</p>
-                    </div>
-                    <ProgressBar value={goal.progressPercentage} color={visual.color} label={goal.type === "expense_limit" ? "Uso del limite" : "Progreso"} className="mt-5" />
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                        <div className="rounded-3xl bg-blue-50 p-3"><p className="text-xs font-black text-slate-500">Fecha limite</p><p className="font-black">{goal.endDate}</p></div>
-                        <div className="rounded-3xl bg-blue-50 p-3"><p className="text-xs font-black text-slate-500">Dias restantes</p><p className="font-black">{getDaysRemaining(goal.endDate)}</p></div>
-                    </div>
-
-                    {goal.type === "saving_amount" && (
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                            <div className="rounded-3xl bg-green-50 p-3"><p className="text-xs font-black text-slate-500">Ahorrado</p><p className="font-black text-green-700">{formatCurrencyCOP(goal.currentAmount)}</p></div>
-                            <div className="rounded-3xl bg-yellow-50 p-3"><p className="text-xs font-black text-slate-500">Objetivo</p><p className="font-black text-yellow-800">{formatCurrencyCOP(goal.targetAmount)}</p></div>
-                        </div>
-                    )}
-
-                    {goal.type === "expense_limit" && (
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                            <div className="rounded-3xl bg-red-50 p-3"><p className="text-xs font-black text-slate-500">Gastado</p><p className="font-black text-red-700">{formatCurrencyCOP(goal.currentExpense)}</p></div>
-                            <div className="rounded-3xl bg-green-50 p-3"><p className="text-xs font-black text-slate-500">Disponible</p><p className="font-black text-green-700">{formatCurrencyCOP(Math.max((goal.expenseLimit || 0) - (goal.currentExpense || 0), 0))}</p></div>
-                        </div>
-                    )}
-
-                    {goal.type === "lesson_completion" && (
-                        <div className="mt-4 rounded-3xl bg-blue-50 p-4 text-center">
-                            <p className="text-sm font-bold text-slate-600">{goal.completedLessons || 0} de {goal.targetLessons || 0} lecciones completadas</p>
-                            <Button onClick={() => navigate("/learn")} className="mt-3">Ir a aprender</Button>
-                        </div>
-                    )}
-
-                    {["saving_amount", "expense_limit"].includes(goal.type) && (
-                        <form onSubmit={contribution} className="mt-4 rounded-3xl bg-blue-50 p-4">
-                            <h3 className="font-black">{goal.type === "expense_limit" ? "Registrar gasto" : "Registrar avance de ahorro"}</h3>
-                            <input className="mt-3 w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 outline-none" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Ej: 10000" />
-                            <input className="mt-2 w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 outline-none" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Nota opcional" />
-                            <Button type="submit" className="mt-3 w-full">Registrar</Button>
-                        </form>
-                    )}
-
-                    {goal.milestones?.length > 0 && (
-                        <div className="mt-4 rounded-3xl bg-blue-50 p-4">
-                            <h3 className="font-black">Hitos diarios</h3>
-                            <div className="mt-3 space-y-2">
-                                {goal.milestones.map((milestone) => (
-                                    <div key={milestone.id} className="flex items-center justify-between rounded-2xl bg-white p-3 shadow-sm">
-                                        <div><p className="font-black">{milestone.title}</p><p className="text-xs text-slate-500">{milestone.dueDate}</p></div>
-                                        <Button size="sm" variant={milestone.isCompleted ? "success" : "secondary"} onClick={() => toggleMilestone(milestone.id)}>{milestone.isCompleted ? "Cumplido" : "Marcar"}</Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="mt-4 rounded-3xl bg-slate-50 p-4">
-                        <h3 className="font-black">Historial de avances</h3>
-                        {!goal.contributions?.length && <p className="mt-2 text-sm text-slate-500">Aun no hay avances registrados.</p>}
-                        {(goal.contributions || []).map((item) => (
-                            <div key={item.id} className="mt-2 rounded-2xl bg-white p-3 text-sm shadow-sm">
-                                <p className="font-black">{item.type === "expense_record" ? "Gasto" : "Avance"}: {item.amount ? formatCurrencyCOP(item.amount) : "Registro"}</p>
-                                {item.note && <p className="text-slate-500">{item.note}</p>}
-                                <p className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleString("es-CO")}</p>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-                <Button variant="danger" className="mt-4 w-full" onClick={removeGoal}>Eliminar meta</Button>
+      <div className="card card-pad" style={{ marginTop: 12 }}>
+        <div className="list-icon"><Target /></div>
+        <h1 style={{ fontSize: "1.8rem", margin: "12px 0 6px" }}>{goal.title}</h1>
+        <p className="page-subtitle">{goal.description}</p>
+        {target > 0 && (
+          <>
+            <ProgressBar value={progress} yellow={goal.type === "expense_limit"} />
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 8, fontWeight: 800, color: "#003ea2", fontSize: ".82rem" }}>
+              <span>{presentation.currentLabel}</span>
+              <span>{Math.round(progress)}%</span>
+              <span>{presentation.targetLabel}</span>
             </div>
-        </MobileShell>
-    );
+          </>
+        )}
+        {danger && <div className="warning-box" style={{ marginTop: 12 }}>Superaste el límite definido. Úsalo como señal para revisar qué gasto puedes ajustar.</div>}
+      </div>
+
+      {goal.status !== "completed" && goal.type !== "lesson_completion" && (
+        <form className="card card-pad" onSubmit={add}>
+          <h2 style={{ margin: "0 0 6px", fontSize: "1.15rem" }}>{presentation.title}</h2>
+          <p className="page-subtitle">{presentation.help}</p>
+          {presentation.input && (
+            <div className="field">
+              <label className="input-label">Monto</label>
+              <input className="input" type="number" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+          )}
+          <button className="btn btn-primary btn-block" disabled={busy || (presentation.input && !amount)}>
+            {busy ? "Guardando…" : presentation.action}
+          </button>
+        </form>
+      )}
+
+      {goal.type === "lesson_completion" && goal.status !== "completed" && (
+        <div className="card card-pad">
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}><CircleDollarSign color="#0068fb" /><strong>{presentation.title}</strong></div>
+          <p className="page-subtitle" style={{ margin: "10px 0 0" }}>{presentation.help}</p>
+        </div>
+      )}
+
+      {goal.status === "completed" && (
+        <div className="success-box" style={{ marginTop: 14 }}><CheckCircle2 size={17} style={{ verticalAlign: "middle" }} /> ¡Meta lograda! Este progreso quedó guardado en FinPath.</div>
+      )}
+    </AppShell>
+  );
 }
