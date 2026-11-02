@@ -1,60 +1,53 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-import ProgressBar from "../components/common/ProgressBar";
-import MobileShell from "../components/layout/MobileShell";
-import TopBar from "../components/layout/TopBar";
-import TriageQuestionCard from "../components/triage/TriageQuestionCard";
-import TriageResultCard from "../components/triage/TriageResultCard";
-import { useAppContext } from "../context/AppContext";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import AppShell from "../components/layout/AppShell";
 import { TRIAGE_QUESTIONS } from "../data";
-import { store } from "../storage";
-import { triageService, userService } from "../services";
+import { useAuth } from "../context/AuthContext";
+import { useApp } from "../context/AppContext";
+import { appService } from "../services/appService";
 
 export default function TriagePage() {
-    const navigate = useNavigate();
-    const { user, refresh } = useAppContext();
-    const [step, setStep] = useState(0);
-    const [answers, setAnswers] = useState({});
-    const [result, setResult] = useState(store.getTriageResult());
-    const question = TRIAGE_QUESTIONS[step];
+  const { user } = useAuth();
+  const { triage, refresh } = useApp();
+  const navigate = useNavigate();
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [busy, setBusy] = useState(false);
 
-    const selectOption = (questionId, optionId) => setAnswers((current) => ({ ...current, [questionId]: optionId }));
+  if (triage?.completed_at) return <Navigate to="/app" replace />;
 
-    const next = () => {
-        if (step < TRIAGE_QUESTIONS.length - 1) {
-            setStep((current) => current + 1);
-            return;
-        }
-        const built = triageService.buildTriageResult(user.id, answers);
-        triageService.save(built);
-        userService.markTriageCompleted(built.level, built.interests);
-        setResult(built);
-        refresh();
-    };
+  const q = TRIAGE_QUESTIONS[index];
+  const selected = answers[q.id];
+  const next = async () => {
+    if (!selected) return;
+    if (index < TRIAGE_QUESTIONS.length - 1) return setIndex(index + 1);
+    setBusy(true);
+    try {
+      await appService.saveTriage(user, answers);
+      await refresh();
+      navigate("/app", { replace:true });
+    } finally { setBusy(false); }
+  };
 
-    return (
-        <MobileShell topBar={<TopBar title="Diagnostico" subtitle="Personaliza tu aprendizaje" />}>
-            {!result ? (
-                <>
-                    <div className="mb-2 flex justify-between text-xs font-bold text-slate-600">
-                        <span>Diagnostico financiero</span>
-                        <span>Pregunta {step + 1} de {TRIAGE_QUESTIONS.length}</span>
-                    </div>
-                    <ProgressBar value={((step + 1) / TRIAGE_QUESTIONS.length) * 100} showPercentage={false} color="#ffcc2a" />
-                    <TriageQuestionCard
-                        question={question}
-                        selectedOptionId={answers[question.id]}
-                        onSelect={selectOption}
-                        canGoBack={step > 0}
-                        onBack={() => setStep((current) => Math.max(current - 1, 0))}
-                        onContinue={next}
-                        isLast={step === TRIAGE_QUESTIONS.length - 1}
-                    />
-                </>
-            ) : (
-                <TriageResultCard result={result} onGoGoals={() => navigate("/goals")} onGoLearn={() => navigate("/learn")} onGoHome={() => navigate("/")} />
-            )}
-        </MobileShell>
-    );
+  return (
+    <AppShell>
+      <span className="eyebrow">Diagnóstico inicial</span>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:10}}>
+        <h1 className="page-title" style={{fontSize:"1.8rem"}}>{q.question}</h1>
+        <strong style={{color:"#0068fb"}}>{index+1}/{TRIAGE_QUESTIONS.length}</strong>
+      </div>
+      <p className="page-subtitle">{q.description}</p>
+      <div className="progress-track" style={{marginBottom:18}}><div className="progress-fill" style={{width:`${((index+1)/TRIAGE_QUESTIONS.length)*100}%`}}/></div>
+      <div className="card card-pad">
+        {q.options.map(opt=>(
+          <button key={opt.id} type="button" className={`question-option ${selected===opt.id ? "selected":""}`} onClick={()=>setAnswers({...answers,[q.id]:opt.id})}>{opt.label}</button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:index ? "1fr 2fr":"1fr",gap:10,marginTop:16}}>
+        {index>0 && <button className="btn btn-secondary" onClick={()=>setIndex(index-1)}><ArrowLeft size={18}/> Atrás</button>}
+        <button className="btn btn-primary" disabled={!selected || busy} onClick={next}>{index===TRIAGE_QUESTIONS.length-1 ? (busy?"Guardando…":"Ver mi ruta") : "Continuar"} <ArrowRight size={18}/></button>
+      </div>
+    </AppShell>
+  );
 }

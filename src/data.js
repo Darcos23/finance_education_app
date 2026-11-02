@@ -1,767 +1,1682 @@
 export const APP_CONFIG = {
-    appName: "Prototipo",
-    appSlogan: "Aprende finanzas y construye mejores habitos con tu dinero",
-    colors: {
-        yellow: "#ffcc2a",
-        black: "#010209",
-        sky: "#c9e4f9",
-        red: "#fe5d4b",
-        green: "#32b984",
-        blue: "#1e67b8",
-    },
+  appName: "FinPath",
+  appSlogan: "Aprende hoy, decide mejor mañana.",
+  colors: {
+    yellow: "#fdbf04",
+    sky: "#72b6fd",
+    blue: "#0068fb",
+    blueSoft: "#449bfd",
+    navy: "#003ea2",
+    ink: "#061a3a"
+  }
 };
 
+
+
 export const TRIAGE_QUESTIONS = [
+
     {
+
         id: "q1",
-        question: "¿Que tan comodo te sientes manejando tu dinero?",
+
+        question: "¿Qué tan cómodo te sientes manejando tu dinero?",
+
         description: "Esto nos ayuda a personalizar tu experiencia.",
+
         options: [
+
             { id: "q1_a", label: "Me cuesta mucho organizarme", score: 1, interestTag: "basic_money_management" },
+
             { id: "q1_b", label: "Se algunas cosas, pero no soy constante", score: 2, interestTag: "habits" },
-            { id: "q1_c", label: "Tengo un sistema basico para organizarme", score: 3, interestTag: "planning" },
+
+            { id: "q1_c", label: "Tengo un sistema básico para organizarme", score: 3, interestTag: "planning" },
+
             { id: "q1_d", label: "Manejo presupuesto, ahorro y metas", score: 4, interestTag: "advanced_planning" },
+
         ],
+
     },
+
     {
+
         id: "q2",
-        question: "¿Que haces cuando recibes dinero?",
-        description: "Queremos entender tus habitos actuales.",
+
+        question: "¿Qué haces cuando recibes dinero?",
+
+        description: "Queremos entender tus hábitos actuales.",
+
         options: [
+
             { id: "q2_a", label: "Lo gasto sin planear mucho", score: 1, interestTag: "spending_control" },
-            { id: "q2_b", label: "Pago cosas importantes y luego miro que queda", score: 2, interestTag: "budgeting" },
+
+            { id: "q2_b", label: "Pago cosas importantes y luego miro qué queda", score: 2, interestTag: "budgeting" },
+
             { id: "q2_c", label: "Separo una parte para ahorrar", score: 3, interestTag: "saving" },
-            { id: "q2_d", label: "Lo distribuyo entre presupuesto, ahorro e inversion", score: 4, interestTag: "planning" },
+
+            { id: "q2_d", label: "Lo distribuyo entre presupuesto, ahorro e inversión", score: 4, interestTag: "planning" },
+
         ],
+
     },
+
     {
+
         id: "q3",
-        question: "¿Sabes cuanto gastas al mes?",
+
+        question: "¿Sabes cuánto gastas al mes?",
+
         description: "El control del gasto es una base importante.",
+
         options: [
+
             { id: "q3_a", label: "No, casi nunca lo reviso", score: 1, interestTag: "expense_tracking" },
+
             { id: "q3_b", label: "Tengo una idea aproximada", score: 2, interestTag: "expense_tracking" },
-            { id: "q3_c", label: "Si, lo anoto algunas veces", score: 3, interestTag: "budgeting" },
-            { id: "q3_d", label: "Si, llevo control detallado", score: 4, interestTag: "advanced_planning" },
+
+            { id: "q3_c", label: "Sí, lo anoto algunas veces", score: 3, interestTag: "budgeting" },
+
+            { id: "q3_d", label: "Sí, llevo control detallado", score: 4, interestTag: "advanced_planning" },
+
         ],
+
     },
+
     {
+
         id: "q4",
+
         question: "¿Tienes una meta financiera activa?",
+
         description: "Por ejemplo, ahorrar, pagar una deuda o controlar gastos.",
+
         options: [
+
             { id: "q4_a", label: "No tengo ninguna", score: 1, interestTag: "goal_setting" },
+
             { id: "q4_b", label: "Tengo una idea, pero no la he organizado", score: 2, interestTag: "goal_setting" },
-            { id: "q4_c", label: "Si, tengo una meta definida", score: 3, interestTag: "saving" },
-            { id: "q4_d", label: "Si, tengo varias metas con seguimiento", score: 4, interestTag: "advanced_planning" },
+
+            { id: "q4_c", label: "Sí, tengo una meta definida", score: 3, interestTag: "saving" },
+
+            { id: "q4_d", label: "Sí, tengo varias metas con seguimiento", score: 4, interestTag: "advanced_planning" },
+
         ],
+
     },
+
     {
+
         id: "q5",
-        question: "¿Que tema te interesa aprender primero?",
-        description: "Te recomendaremos rutas segun tus intereses.",
+
+        question: "¿Qué tema te interésa aprender primero?",
+
+        description: "Te recomendaremos rutas según tus interéses.",
+
         options: [
+
             { id: "q5_a", label: "Aprender a ahorrar", score: 2, interestTag: "saving" },
+
             { id: "q5_b", label: "Controlar gastos impulsivos", score: 2, interestTag: "spending_control" },
+
             { id: "q5_c", label: "Crear un presupuesto", score: 2, interestTag: "budgeting" },
-            { id: "q5_d", label: "Tomar mejores decisiones financieras", score: 2, interestTag: "decision_making" },
+
+            { id: "q5_d", label: "Tomar mejores decisiones financieras", score: 2, interestTag: "decisión_making" },
+
         ],
+
     },
+
     {
+
         id: "q6",
-        question: "¿Que tan dificil te parece ahorrar?",
+
+        question: "¿Qué tan difícil te parece ahorrar?",
+
         description: "Esto ayuda a definir el tipo de metas iniciales.",
+
         options: [
-            { id: "q6_a", label: "Muy dificil, casi nunca ahorro", score: 1, interestTag: "saving" },
+
+            { id: "q6_a", label: "Muy difícil, casi nunca ahorro", score: 1, interestTag: "saving" },
+
             { id: "q6_b", label: "A veces ahorro, pero no soy constante", score: 2, interestTag: "habits" },
+
             { id: "q6_c", label: "Puedo ahorrar si tengo una meta clara", score: 3, interestTag: "goal_setting" },
+
             { id: "q6_d", label: "Ahorro regularmente", score: 4, interestTag: "advanced_planning" },
+
         ],
+
     },
+
     {
+
         id: "q7",
-        question: "Cuando compras algo no planeado, ¿que suele pasar?",
+
+        question: "Cuando compras algo no planeado, ¿qué suele pasar?",
+
         description: "Identificaremos oportunidades de autocontrol financiero.",
+
         options: [
+
             { id: "q7_a", label: "Lo hago con frecuencia y luego me arrepiento", score: 1, interestTag: "spending_control" },
+
             { id: "q7_b", label: "A veces pasa, pero intento corregirlo", score: 2, interestTag: "habits" },
-            { id: "q7_c", label: "Comparo opciones antes de comprar", score: 3, interestTag: "decision_making" },
+
+            { id: "q7_c", label: "Comparo opciones antes de comprar", score: 3, interestTag: "decisión_making" },
+
             { id: "q7_d", label: "Uso reglas claras antes de gastar", score: 4, interestTag: "advanced_planning" },
+
         ],
+
     },
+
 ];
+
+
 
 export const GOAL_TEMPLATES = [
+
     {
+
         id: "template_save_10k_week",
+
         title: "Ahorrar $10.000 esta semana",
-        description: "Empieza con una meta pequena y alcanzable.",
+
+        description: "Empieza con una meta pequeña y alcanzable.",
+
         type: "saving_amount",
+
         suggestedLevel: "beginner",
+
         tags: ["saving", "habits"],
+
         iconKey: "Wallet",
+
         defaultTargetAmount: 10000,
+
         defaultDurationDays: 7,
+
         defaultTargetLessons: 0,
+
         difficulty: "easy",
+
     },
+
     {
+
         id: "template_track_expenses_3_days",
-        title: "Registrar gastos durante 3 dias",
-        description: "Observa en que se va tu dinero antes de intentar cambiarlo.",
+
+        title: "Registrar gastos durante 3 días",
+
+        description: "Observa en qué se va tu dinero antes de intentar cambiarlo.",
+
         type: "habit_streak",
+
         suggestedLevel: "beginner",
+
         tags: ["expense_tracking", "habits"],
+
         iconKey: "ClipboardCheck",
+
         defaultTargetAmount: 0,
+
         defaultDurationDays: 3,
+
         defaultTargetLessons: 0,
+
         difficulty: "easy",
+
     },
+
     {
+
         id: "template_reduce_entertainment",
+
         title: "Reducir gastos de entretenimiento",
-        description: "Controla pequenos gastos que se acumulan durante la semana.",
+
+        description: "Controla pequeños gastos que se acumulan durante la semana.",
+
         type: "expense_limit",
+
         suggestedLevel: "intermediate",
+
         tags: ["spending_control", "budgeting"],
+
         iconKey: "Gamepad2",
+
         defaultTargetAmount: 50000,
+
         defaultDurationDays: 7,
+
         defaultTargetLessons: 0,
+
         difficulty: "medium",
+
     },
+
     {
+
         id: "template_complete_3_lessons",
+
         title: "Completar 3 lecciones esta semana",
+
         description: "Construye conocimiento financiero paso a paso.",
+
         type: "lesson_completion",
+
         suggestedLevel: "beginner",
+
         tags: ["learning", "habits"],
+
         iconKey: "BookOpenCheck",
+
         defaultTargetAmount: 0,
+
         defaultDurationDays: 7,
+
         defaultTargetLessons: 3,
+
         difficulty: "easy",
+
     },
+
     {
+
         id: "template_cash_control_week",
+
         title: "Revisar gastos cada noche",
+
         description: "Cierra el dia revisando si tus gastos fueron necesarios o impulsivos.",
+
         type: "habit_streak",
+
         suggestedLevel: "intermediate",
+
         tags: ["expense_tracking", "spending_control"],
+
         iconKey: "Moon",
+
         defaultTargetAmount: 0,
+
         defaultDurationDays: 7,
+
         defaultTargetLessons: 0,
+
         difficulty: "medium",
+
     },
+
 ];
 
+
+
 export const LEARNING_PATHS = [
+
     {
+
         id: "path_saving_expenses",
+
         title: "Ahorro y gastos",
+
         description: "Aprende a identificar fugas de dinero, diferenciar gastos importantes y crear metas de ahorro realistas.",
+
         level: "beginner",
+
         tags: ["saving", "expense_tracking", "spending_control", "habits"],
+
         iconKey: "PiggyBank",
-        color: "#1e67b8",
+
+        color: "#0068fb",
+
         lessons: [
+
             {
+
                 id: "lesson_where_money_goes",
+
                 pathId: "path_saving_expenses",
+
                 order: 1,
+
                 title: "Detecta en qué se va tu dinero",
+
                 description: "Aprende a reconocer tus gastos frecuentes y encontrar pequeñas fugas de dinero.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "l1_s1",
+
                         type: "content",
+
                         title: "El primer paso no es ahorrar, es observar",
+
                         body: "Muchas personas sienten que el dinero desaparece, pero en realidad suele irse en gastos pequeños y repetidos. Antes de intentar ahorrar, necesitas identificar cuáles gastos se repiten y cuáles podrías ajustar sin afectar tus necesidades básicas.",
+
                         iconKey: "Search",
+
                     },
+
                     {
+
                         id: "l1_s2",
+
                         type: "interaction",
+
                         title: "Tres tipos de gasto cotidiano",
+
                         body: "Para entender tus gastos, sepáralos en tres grupos: necesarios, variables y evitables. Los necesarios sostienen tu día a día; los variables se pueden ajustar; los evitables suelen ser impulsivos o poco planeados.",
+
                         options: [
+
                             { id: "needs", label: "Necesarios", iconKey: "House" },
+
                             { id: "variable", label: "Variables", iconKey: "Wallet" },
+
                             { id: "avoidable", label: "Evitables", iconKey: "ShoppingBag" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l1_s3",
+
                         type: "question",
+
                         title: "Aplica el concepto",
+
                         body: "Si una persona compra snacks todos los días por $5.000, ¿qué debería hacer primero para mejorar su control financiero?",
+
                         options: [
+
                             { id: "stop_all", label: "Eliminar todos sus gastos de inmediato", iconKey: "CircleHelp" },
+
                             { id: "track_pattern", label: "Registrar cuántas veces ocurre ese gasto en la semana", iconKey: "ClipboardCheck" },
+
                             { id: "ignore", label: "Ignorarlo porque es un gasto pequeño", iconKey: "ShoppingBag" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l1_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "La mejor primera acción es registrar el patrón. Un gasto pequeño puede parecer irrelevante, pero si se repite muchas veces, se convierte en una fuga de dinero. Por ejemplo, $5.000 diarios durante 20 días son $100.000 al mes.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "l1_s5",
+
                         type: "action",
+
                         title: "Convierte el aprendizaje en una meta",
+
                         body: "Elige una acción pequeña para observar tus gastos antes de cambiarlos. La idea no es prohibirte gastar, sino entender mejor tus hábitos.",
+
                         options: [
+
                             { id: "template_track_expenses_3_days", label: "Registrar gastos durante 3 días", iconKey: "ClipboardCheck" },
+
                             { id: "template_save_10k_week", label: "Ahorrar $10.000 esta semana", iconKey: "Wallet" },
+
                             { id: "template_reduce_entertainment", label: "Reducir gastos de entretenimiento", iconKey: "Gamepad2" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l1_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "No puedes mejorar lo que no observas. Registrar tus gastos por pocos días puede mostrarte oportunidades reales de ahorro sin necesidad de hacer cambios extremos.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_needs_wants",
+
                 pathId: "path_saving_expenses",
+
                 order: 2,
+
                 title: "Diferencia necesidades, deseos y gastos impulsivos",
+
                 description: "Aprende a clasificar tus gastos para tomar mejores decisiones sin sentir que todo es una restricción.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "l2_s1",
+
                         type: "content",
+
                         title: "No todos los gastos tienen el mismo peso",
+
                         body: "Una necesidad es algo que sostiene tu vida diaria, como transporte, alimentación básica o salud. Un deseo mejora tu comodidad o entretenimiento, pero puede esperar. Un gasto impulsivo ocurre cuando compras sin planear y luego sientes que no era tan necesario.",
+
                         iconKey: "Brain",
+
                     },
+
                     {
+
                         id: "l2_s2",
+
                         type: "interaction",
+
                         title: "Clasifica antes de decidir",
+
                         body: "Antes de gastar, pregúntate: ¿esto es necesario, es un deseo o es un impulso? Esta pausa te ayuda a decidir con más claridad.",
+
                         options: [
+
                             { id: "need", label: "Necesidad", iconKey: "Home" },
+
                             { id: "want", label: "Deseo", iconKey: "Gamepad2" },
+
                             { id: "impulse", label: "Impulso", iconKey: "Zap" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l2_s3",
+
                         type: "question",
+
                         title: "Caso práctico",
+
                         body: "Tienes poco dinero esta semana y quieres comprar comida fuera de casa porque no alcanzaste a preparar almuerzo. ¿Qué decisión sería más equilibrada?",
+
                         options: [
+
                             { id: "buy_expensive", label: "Comprar lo primero que encuentres sin mirar precio", iconKey: "ShoppingBag" },
+
                             { id: "compare_options", label: "Comparar opciones y elegir una que no afecte tu presupuesto", iconKey: "Search" },
+
                             { id: "skip_food", label: "No comer para no gastar", iconKey: "CircleHelp" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l2_s4",
+
                         type: "result",
+
                         title: "Decisión más saludable",
+
                         body: "La mejor opción es comparar alternativas. No se trata de eliminar todos los gastos, sino de tomar decisiones más conscientes. Una necesidad puede resolverse de forma costosa o de forma planificada.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "l2_s5",
+
                         type: "action",
+
                         title: "Practica durante tres días",
+
                         body: "Registra tus gastos y clasifícalos como necesidad, deseo o impulso. Al final podrás ver qué tipo de gasto aparece con más frecuencia.",
+
                         options: [
+
                             { id: "template_track_expenses_3_days", label: "Crear meta: registrar gastos durante 3 días", iconKey: "ClipboardCheck" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l2_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Controlar gastos no significa dejar de disfrutar. Significa distinguir qué gastos son importantes, cuáles se pueden ajustar y cuáles nacen de decisiones impulsivas.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_first_small_goal",
+
                 pathId: "path_saving_expenses",
+
                 order: 3,
+
                 title: "Crea una meta de ahorro alcanzable",
+
                 description: "Aprende a convertir una intención de ahorro en una meta clara, medible y realista.",
+
                 estimatedMinutes: 7,
+
                 xpReward: 14,
+
                 steps: [
+
                     {
+
                         id: "l3_s1",
+
                         type: "content",
+
                         title: "Una meta útil necesita ser concreta",
+
                         body: "Decir 'quiero ahorrar' es una intención. Decir 'voy a ahorrar $10.000 esta semana reduciendo un gasto variable' es una meta. Una buena meta tiene monto, plazo y una acción concreta.",
+
                         iconKey: "Flag",
+
                     },
+
                     {
+
                         id: "l3_s2",
+
                         type: "interaction",
+
                         title: "Fórmula de una meta financiera",
+
                         body: "Usa esta estructura: monto + fecha + acción. Así puedes saber cuánto quieres lograr, cuándo lo revisarás y qué harás para conseguirlo.",
+
                         options: [
+
                             { id: "amount", label: "Monto", iconKey: "BadgeDollarSign" },
+
                             { id: "date", label: "Fecha", iconKey: "CalendarDays" },
+
                             { id: "action", label: "Acción", iconKey: "ListChecks" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l3_s3",
+
                         type: "question",
+
                         title: "Elige la meta mejor formulada",
+
                         body: "¿Cuál de estas opciones está mejor planteada como meta financiera?",
+
                         options: [
+
                             { id: "generic", label: "Ahorrar más dinero algún día", iconKey: "CircleHelp" },
+
                             { id: "clear", label: "Ahorrar $10.000 esta semana reduciendo compras pequeñas", iconKey: "Target" },
+
                             { id: "extreme", label: "No gastar nada durante un mes completo", iconKey: "Zap" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l3_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "La meta más útil es la que incluye monto, plazo y acción. Además, debe sentirse alcanzable. Las metas pequeñas ayudan a crear confianza y constancia.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "l3_s5",
+
                         type: "action",
+
                         title: "Crea tu primera meta",
+
                         body: "Empieza con una meta corta. Lo importante es comprobar que puedes avanzar, registrar progreso y aprender de tu comportamiento.",
+
                         options: [
+
                             { id: "template_save_10k_week", label: "Ahorrar $10.000 esta semana", iconKey: "Wallet" },
+
                         ],
+
                     },
+
                     {
+
                         id: "l3_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Una meta pequeña bien definida vale más que una meta grande y confusa. La claridad facilita la acción y permite medir tu progreso.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
         ],
+
     },
+
     {
+
         id: "path_budgeting",
+
         title: "Presupuesto personal",
+
         description: "Organiza tus ingresos, gastos y dinero disponible con un método simple y flexible.",
+
         level: "intermediate",
+
         tags: ["budgeting", "planning", "expense_tracking"],
+
         iconKey: "ChartNoAxesColumnIncreasing",
-        color: "#32b984",
+
+        color: "#449bfd",
+
         lessons: [
+
             {
+
                 id: "lesson_budget_intro",
+
                 pathId: "path_budgeting",
+
                 order: 1,
+
                 title: "Construye un presupuesto simple",
+
                 description: "Aprende a dividir tu dinero antes de gastarlo para tener mayor claridad y control.",
+
                 estimatedMinutes: 7,
+
                 xpReward: 14,
+
                 steps: [
+
                     {
+
                         id: "b1_s1",
+
                         type: "content",
+
                         title: "Un presupuesto no es una restricción",
+
                         body: "Un presupuesto es un plan para decidir qué hará tu dinero antes de que desaparezca. No sirve para castigarte, sino para ayudarte a cubrir necesidades, ahorrar y dejar espacio para gastos personales.",
+
                         iconKey: "NotebookTabs",
+
                     },
+
                     {
+
                         id: "b1_s2",
+
                         type: "interaction",
+
                         title: "Tres bloques básicos",
+
                         body: "Puedes empezar dividiendo tu dinero en tres bloques: gastos necesarios, ahorro o metas, y gastos flexibles. No tiene que ser perfecto; lo importante es que puedas revisarlo y ajustarlo.",
+
                         options: [
+
                             { id: "needs", label: "Necesarios", iconKey: "House" },
+
                             { id: "save", label: "Ahorro o metas", iconKey: "Wallet" },
+
                             { id: "flex", label: "Flexibles", iconKey: "BadgeDollarSign" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b1_s3",
+
                         type: "question",
+
                         title: "Pregunta rápida",
+
                         body: "Si recibes dinero y quieres organizarte mejor, ¿qué acción te ayuda más?",
+
                         options: [
+
                             { id: "spend_first", label: "Gastar primero y ahorrar si sobra", iconKey: "ShoppingBag" },
+
                             { id: "separate_first", label: "Separar primero una parte para necesidades y metas", iconKey: "Wallet" },
+
                             { id: "avoid_review", label: "No revisar para no preocuparte", iconKey: "CircleHelp" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b1_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "Separar el dinero desde el inicio ayuda a evitar que todo se vaya en gastos no planeados. Aunque el monto sea pequeño, priorizar necesidades y metas crea orden financiero.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                     {
+
                         id: "b1_s5",
+
                         type: "action",
+
                         title: "Llévalo a una meta",
+
                         body: "Crea un hábito de revisión. Revisar tus gastos por la noche puede ayudarte a detectar si tu dinero se está usando como planeaste.",
+
                         options: [
+
                             { id: "template_cash_control_week", label: "Revisar gastos cada noche", iconKey: "Moon" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b1_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Un presupuesto útil no necesita ser complejo. Debe ayudarte a decidir, priorizar y revisar. Si puedes entenderlo y ajustarlo, ya estás avanzando.",
+
                         iconKey: "ChartNoAxesColumnIncreasing",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_fixed_variable",
+
                 pathId: "path_budgeting",
+
                 order: 2,
+
                 title: "Distingue gastos fijos y variables",
+
                 description: "Aprende a identificar qué gastos son más fáciles de ajustar en el corto plazo.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "b2_s1",
+
                         type: "content",
+
                         title: "No todos los gastos se ajustan igual",
+
                         body: "Los gastos fijos suelen repetirse y cambiar poco, como arriendo, matrícula o algunos servicios. Los gastos variables dependen más de tus decisiones diarias, como comidas fuera, transporte adicional, entretenimiento o compras pequeñas.",
+
                         iconKey: "Search",
+
                     },
+
                     {
+
                         id: "b2_s2",
+
                         type: "interaction",
+
                         title: "Dónde empezar a ajustar",
+
                         body: "Cuando quieres mejorar tu presupuesto, normalmente es más fácil comenzar por gastos variables. No porque sean malos, sino porque ofrecen cambios rápidos y realistas.",
+
                         options: [
+
                             { id: "fixed", label: "Gastos fijos", iconKey: "House" },
+
                             { id: "variable", label: "Gastos variables", iconKey: "Utensils" },
+
                             { id: "goals", label: "Metas", iconKey: "Target" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b2_s3",
+
                         type: "question",
+
                         title: "Detecta el ajuste más realista",
+
                         body: "Si quieres liberar algo de dinero esta semana, ¿qué gasto suele ser más fácil revisar primero?",
+
                         options: [
+
                             { id: "rent", label: "Arriendo", iconKey: "House" },
+
                             { id: "snacks", label: "Comidas fuera o snacks", iconKey: "Utensils" },
+
                             { id: "tuition", label: "Matrícula", iconKey: "GraduationCap" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b2_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "Las comidas fuera o snacks suelen ser más fáciles de ajustar en el corto plazo. Los gastos fijos también pueden revisarse, pero normalmente requieren más tiempo, negociación o cambios grandes.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "b2_s5",
+
                         type: "action",
+
                         title: "Haz una revisión corta",
+
                         body: "Durante tres días, registra un gasto variable y pregúntate: ¿fue necesario, planeado o impulsivo?",
+
                         options: [
+
                             { id: "template_track_expenses_3_days", label: "Registrar gastos durante 3 días", iconKey: "ClipboardCheck" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b2_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Un buen presupuesto no empieza eliminando todo. Empieza detectando qué gastos puedes ajustar sin afectar tu bienestar básico.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_budget_review",
+
                 pathId: "path_budgeting",
+
                 order: 3,
+
                 title: "Revisa tu presupuesto sin frustrarte",
+
                 description: "Aprende a evaluar tu presupuesto como una herramienta de mejora, no como una prueba que debes ganar o perder.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "b3_s1",
+
                         type: "content",
+
                         title: "El presupuesto se ajusta, no se abandona",
+
                         body: "Si un presupuesto no se cumple al 100%, no significa que fracasaste. Significa que tienes nueva información. La revisión sirve para entender qué pasó y hacer un ajuste más realista.",
+
                         iconKey: "NotebookTabs",
+
                     },
+
                     {
+
                         id: "b3_s2",
+
                         type: "interaction",
+
                         title: "Tres preguntas de revisión",
+
                         body: "Al final de la semana, revisa: ¿qué gasto fue mayor de lo esperado?, ¿qué sí funcionó?, ¿qué ajuste pequeño puedo hacer la próxima semana?",
+
                         options: [
+
                             { id: "excess", label: "Qué se salió del plan", iconKey: "Search" },
+
                             { id: "worked", label: "Qué funcionó", iconKey: "CheckCircle2" },
+
                             { id: "adjust", label: "Qué ajustar", iconKey: "ListChecks" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b3_s3",
+
                         type: "question",
+
                         title: "Caso práctico",
+
                         body: "Una persona gastó más de lo planeado en transporte porque tuvo varios imprevistos. ¿Cuál sería una buena respuesta?",
+
                         options: [
+
                             { id: "give_up", label: "Abandonar el presupuesto porque no funcionó", iconKey: "CircleHelp" },
+
                             { id: "adjust_next", label: "Ajustar el presupuesto de la próxima semana considerando imprevistos", iconKey: "ListChecks" },
+
                             { id: "ignore", label: "No revisar ese gasto", iconKey: "ShoppingBag" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b3_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "La mejor respuesta es ajustar. Un presupuesto útil debe contemplar la vida real. Si hay imprevistos frecuentes, conviene dejar un pequeño margen para ellos.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "b3_s5",
+
                         type: "action",
+
                         title: "Crea un hábito de revisión",
+
                         body: "Revisar tus gastos con frecuencia te ayuda a tomar decisiones con información, no solo con memoria o intuición.",
+
                         options: [
+
                             { id: "template_cash_control_week", label: "Revisar gastos cada noche", iconKey: "Moon" },
+
                         ],
+
                     },
+
                     {
+
                         id: "b3_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Un presupuesto no busca perfección. Busca claridad. Revisar y ajustar es parte normal del proceso.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
         ],
+
     },
+
     {
-        id: "path_decision_making",
+
+        id: "path_decisión_making",
+
         title: "Decisiones financieras inteligentes",
+
         description: "Aprende a tomar mejores decisiones antes de gastar, comparar alternativas y evitar compras impulsivas.",
+
         level: "advanced",
-        tags: ["decision_making", "advanced_planning", "planning"],
+
+        tags: ["decisión_making", "advanced_planning", "planning"],
+
         iconKey: "Brain",
-        color: "#ffcc2a",
+
+        color: "#fdbf04",
+
         lessons: [
+
             {
+
                 id: "lesson_opportunity_cost",
-                pathId: "path_decision_making",
+
+                pathId: "path_decisión_making",
+
                 order: 1,
+
                 title: "Entiende el costo de oportunidad",
+
                 description: "Aprende a reconocer qué estás dejando de hacer cada vez que eliges gastar.",
+
                 estimatedMinutes: 7,
+
                 xpReward: 14,
+
                 steps: [
+
                     {
+
                         id: "d1_s1",
+
                         type: "content",
+
                         title: "Cada decisión tiene un intercambio",
+
                         body: "El costo de oportunidad es aquello a lo que renuncias cuando eliges una opción. Si gastas $30.000 en una compra no planeada, quizá renuncias a ahorrar, pagar algo importante o acercarte a una meta.",
+
                         iconKey: "Scale",
+
                     },
+
                     {
+
                         id: "d1_s2",
+
                         type: "interaction",
+
                         title: "La pregunta clave",
+
                         body: "Antes de gastar, no preguntes solo si puedes pagarlo. Pregunta también: ¿qué dejo de hacer con este dinero si lo gasto ahora?",
+
                         options: [
+
                             { id: "pay", label: "¿Puedo pagarlo?", iconKey: "BadgeDollarSign" },
+
                             { id: "renounce", label: "¿A qué renuncio?", iconKey: "Scale" },
+
                             { id: "goal", label: "¿Afecta una meta?", iconKey: "Target" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d1_s3",
+
                         type: "question",
+
                         title: "Caso práctico",
+
                         body: "Tienes $40.000. Puedes comprar algo no planeado o avanzar en una meta de ahorro. ¿Qué pregunta te ayuda a decidir mejor?",
+
                         options: [
+
                             { id: "cheap", label: "¿Es barato?", iconKey: "BadgeDollarSign" },
+
                             { id: "goal", label: "¿Me acerca o me aleja de mi meta?", iconKey: "Target" },
+
                             { id: "fast", label: "¿Lo puedo comprar rápido?", iconKey: "Zap" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d1_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "La pregunta más útil es si la compra te acerca o te aleja de tu meta. No significa que nunca debas gastar, sino que debes entender el intercambio antes de decidir.",
+
                         iconKey: "Compass",
+
                     },
+
                     {
+
                         id: "d1_s5",
+
                         type: "action",
+
                         title: "Conecta la decisión con una meta",
+
                         body: "Elige una meta sencilla para que tus decisiones tengan un punto de comparación. Así podrás evaluar si un gasto te ayuda o te aleja de lo que quieres lograr.",
+
                         options: [
+
                             { id: "template_save_10k_week", label: "Ahorrar $10.000 esta semana", iconKey: "Wallet" },
+
                             { id: "template_reduce_entertainment", label: "Reducir gastos de entretenimiento", iconKey: "Gamepad2" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d1_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Tomar una buena decisión financiera no siempre significa gastar menos. Significa elegir sabiendo qué ganas y qué estás dejando de lado.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_wait_or_buy",
-                pathId: "path_decision_making",
+
+                pathId: "path_decisión_making",
+
                 order: 2,
+
                 title: "Usa la pausa de 24 horas",
+
                 description: "Aprende una técnica simple para reducir compras impulsivas y decidir con más calma.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "d2_s1",
+
                         type: "content",
+
                         title: "La urgencia puede engañar",
+
                         body: "Muchas compras impulsivas se sienten urgentes en el momento, pero pierden fuerza después de unas horas. La pausa de 24 horas consiste en esperar antes de comprar algo no necesario.",
+
                         iconKey: "Hourglass",
+
                     },
+
                     {
+
                         id: "d2_s2",
+
                         type: "interaction",
+
                         title: "Qué hacer durante la pausa",
+
                         body: "Durante la pausa, pregúntate: ¿lo necesito?, ¿lo había planeado?, ¿afecta una meta?, ¿seguiré queriéndolo mañana?",
+
                         options: [
+
                             { id: "need", label: "¿Lo necesito?", iconKey: "CircleHelp" },
+
                             { id: "planned", label: "¿Estaba planeado?", iconKey: "NotebookTabs" },
+
                             { id: "goal", label: "¿Afecta mi meta?", iconKey: "Target" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d2_s3",
+
                         type: "question",
+
                         title: "Aplica la pausa",
+
                         body: "Ves una oferta por tiempo limitado de algo que no pensabas comprar. ¿Qué acción muestra una mejor decisión financiera?",
+
                         options: [
+
                             { id: "buy_now", label: "Comprar de inmediato para no perder la oferta", iconKey: "Zap" },
+
                             { id: "pause", label: "Esperar y revisar si realmente encaja con tus prioridades", iconKey: "Hourglass" },
+
                             { id: "ignore_budget", label: "Usar dinero de una meta y reponerlo después", iconKey: "Wallet" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d2_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "Esperar te ayuda a separar deseo real de impulso. Si después de la pausa todavía lo consideras importante y no afecta tus prioridades, puedes decidir con más claridad.",
+
                         iconKey: "Lightbulb",
+
                     },
+
                     {
+
                         id: "d2_s5",
+
                         type: "action",
+
                         title: "Convierte la pausa en hábito",
+
                         body: "Registra durante tres días las compras que pausaste. No importa si después decides comprar o no; lo importante es practicar la pausa.",
+
                         options: [
+
                             { id: "template_track_expenses_3_days", label: "Registrar gastos durante 3 días", iconKey: "ClipboardCheck" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d2_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Esperar también es una decisión financiera. La pausa te da tiempo para pensar antes de comprometer tu dinero.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
             {
+
                 id: "lesson_compare_before_spending",
-                pathId: "path_decision_making",
+
+                pathId: "path_decisión_making",
+
                 order: 3,
+
                 title: "Compara antes de gastar",
+
                 description: "Aprende a evaluar alternativas antes de tomar una decisión de compra.",
+
                 estimatedMinutes: 6,
+
                 xpReward: 12,
+
                 steps: [
+
                     {
+
                         id: "d3_s1",
+
                         type: "content",
+
                         title: "Comparar reduce decisiones automáticas",
+
                         body: "Antes de gastar, comparar opciones te ayuda a evitar decisiones impulsivas. No siempre se trata de escoger lo más barato, sino lo que tiene mejor relación entre utilidad, precio y prioridad.",
+
                         iconKey: "Search",
+
                     },
+
                     {
+
                         id: "d3_s2",
+
                         type: "interaction",
+
                         title: "Tres criterios para comparar",
+
                         body: "Una comparación simple puede incluir: precio, utilidad real y efecto sobre tus metas. Si una compra es barata pero no la necesitas, igual puede alejarte de tus objetivos.",
+
                         options: [
+
                             { id: "price", label: "Precio", iconKey: "BadgeDollarSign" },
+
                             { id: "usefulness", label: "Utilidad real", iconKey: "Lightbulb" },
+
                             { id: "impact", label: "Impacto en metas", iconKey: "Target" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d3_s3",
+
                         type: "question",
+
                         title: "Caso práctico",
+
                         body: "Quieres comprar audífonos nuevos. Ya tienes unos que funcionan, pero viste unos en descuento. ¿Qué comparación sería más útil?",
+
                         options: [
+
                             { id: "discount_only", label: "Mirar solo cuánto descuento tienen", iconKey: "BadgeDollarSign" },
+
                             { id: "need_budget_goal", label: "Revisar si los necesitas, si caben en tu presupuesto y si afectan tus metas", iconKey: "ListChecks" },
+
                             { id: "buy_brand", label: "Comprar la marca más popular", iconKey: "ShoppingBag" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d3_s4",
+
                         type: "result",
+
                         title: "Respuesta recomendada",
+
                         body: "La mejor comparación considera necesidad, presupuesto y metas. Una oferta solo es conveniente si realmente aporta valor y no desordena tus prioridades.",
+
                         iconKey: "Compass",
+
                     },
+
                     {
+
                         id: "d3_s5",
+
                         type: "action",
+
                         title: "Crea una regla personal",
+
                         body: "Antes de una compra no planeada, usa esta regla: comparar dos opciones, revisar tu meta y esperar si no estás seguro.",
+
                         options: [
+
                             { id: "template_reduce_entertainment", label: "Reducir gastos de entretenimiento", iconKey: "Gamepad2" },
+
                             { id: "template_cash_control_week", label: "Revisar gastos cada noche", iconKey: "Moon" },
+
                         ],
+
                     },
+
                     {
+
                         id: "d3_s6",
+
                         type: "final",
+
                         title: "Aprendizaje clave",
+
                         body: "Comparar antes de gastar convierte una compra automática en una decisión consciente. Esa pausa puede proteger tus metas y tu presupuesto.",
+
                         iconKey: "CheckCircle2",
+
                     },
+
                 ],
+
             },
+
         ],
+
     },
+
 ];
+
+export const PREMIUM_CONFIG = {
+  monthlyPrice: 9000,
+  currency: "COP",
+  periodLabel: "30 días",
+  renewalLabel: "Sin renovación automática durante la prueba",
+  freeFeatures: [
+    "Diagnóstico financiero",
+    "Rutas básicas de aprendizaje",
+    "Creación y seguimiento de metas",
+    "Simuladores guiados limitados"
+  ],
+  premiumFeatures: [
+    "Práctica adaptativa según tus errores",
+    "Acceso ampliado a simuladores",
+    "Seguimiento de varias metas",
+    "Reporte mensual de progreso"
+  ]
+};
+
+export const SIMULATORS = [
+  {
+    id: "micro_expenses",
+    title: "Gastos hormiga",
+    description: "Descubre cuánto representan pequeños gastos repetidos en un mes y un año.",
+    iconKey: "Coffee"
+  },
+  {
+    id: "savings_goal",
+    title: "Meta de ahorro",
+    description: "Estima cuánto tiempo necesitas para alcanzar una meta con aportes periódicos.",
+    iconKey: "PiggyBank"
+  },
+  {
+    id: "small_debt",
+    title: "Deuda pequeña",
+    description: "Explora cómo una cuota mensual afecta el tiempo aproximado de pago.",
+    iconKey: "CreditCard"
+  },
+  {
+    id: "weekly_budget",
+    title: "Presupuesto semanal",
+    description: "Compara tus ingresos y gastos para visualizar un saldo disponible.",
+    iconKey: "ChartNoAxesColumnIncreasing"
+  }
+];
+
+export const LESSON_ANSWER_KEYS = {
+  l1_s3: "track_pattern",
+  l2_s3: "compare_options",
+  l3_s3: "clear",
+  b1_s3: "separate_first",
+  b2_s3: "snacks",
+  b3_s3: "adjust_next",
+  d1_s3: "goal",
+  d2_s3: "pause",
+  d3_s3: "need_budget_goal"
+};
+
+export const ADAPTIVE_PRACTICE = {
+  lesson_where_money_goes: {
+    title: "Refuerzo: detecta una fuga de dinero",
+    prompt: "Compras una bebida de $6.000 cuatro veces por semana. ¿Qué acción te ayuda primero a decidir si debes ajustarlo?",
+    options: [
+      { id: "observe", label: "Registrar el gasto durante una semana" },
+      { id: "ban", label: "Prohibirte comprarla desde hoy" },
+      { id: "ignore", label: "Ignorarla porque el monto es pequeño" }
+    ],
+    correctOptionId: "observe",
+    insight: "Primero observa el patrón. Con datos reales puedes decidir qué ajuste es sostenible."
+  },
+  lesson_needs_wants: {
+    title: "Refuerzo: necesidad, deseo o impulso",
+    prompt: "Ves unos audífonos en descuento, pero los tuyos funcionan. ¿Qué conviene hacer?",
+    options: [
+      { id: "buy", label: "Comprarlos porque están en descuento" },
+      { id: "pause", label: "Revisar si realmente los necesitas y si afectan una meta" },
+      { id: "credit", label: "Pagarlos a crédito para no tocar tu dinero" }
+    ],
+    correctOptionId: "pause",
+    insight: "La pausa ayuda a separar oportunidad aparente de necesidad real."
+  },
+  lesson_first_small_goal: {
+    title: "Refuerzo: convierte intención en meta",
+    prompt: "¿Cuál meta es más acciónable?",
+    options: [
+      { id: "vague", label: "Ahorrar más este mes" },
+      { id: "specific", label: "Ahorrar $15.000 en 7 días reduciendo un gasto variable" },
+      { id: "extreme", label: "No gastar nada" }
+    ],
+    correctOptionId: "specific",
+    insight: "Una meta clara combina monto, plazo y una acción concreta."
+  },
+  lesson_budget_intro: {
+    title: "Refuerzo: prioriza antes de gastar",
+    prompt: "Recibes $100.000 para la semana. ¿Qué haces primero?",
+    options: [
+      { id: "spend", label: "Gasto y al final reviso qué quedó" },
+      { id: "split", label: "Separo necesidades, metas y gastos flexibles" },
+      { id: "saveall", label: "Ahorro todo y no gasto nada" }
+    ],
+    correctOptionId: "split",
+    insight: "Organizar antes de gastar evita depender de lo que sobre."
+  },
+  lesson_fixed_variable: {
+    title: "Refuerzo: busca el ajuste realista",
+    prompt: "¿Cuál gasto suele ser más fácil de ajustar esta semana?",
+    options: [
+      { id: "rent", label: "Arriendo" },
+      { id: "snacks", label: "Comidas fuera o snacks" },
+      { id: "tuition", label: "Matrícula" }
+    ],
+    correctOptionId: "snacks",
+    insight: "Los gastos variables suelen ofrecer ajustes más rápidos sin alterar obligaciones fijas."
+  },
+  lesson_budget_review: {
+    title: "Refuerzo: ajusta sin abandonar",
+    prompt: "Tu presupuesto falló por un gasto inesperado. ¿Qué haces?",
+    options: [
+      { id: "quit", label: "Dejo de usar presupuesto" },
+      { id: "adjust", label: "Ajusto la próxima semana e incluyo un margen" },
+      { id: "ignore", label: "No reviso el gasto" }
+    ],
+    correctOptionId: "adjust",
+    insight: "El presupuesto mejora cuando incorpora lo que realmente ocurre."
+  },
+  lesson_opportunity_cost: {
+    title: "Refuerzo: conecta la compra con tu meta",
+    prompt: "Antes de una compra no planeada, ¿qué pregunta agrega más contexto?",
+    options: [
+      { id: "cheap", label: "¿Está barato?" },
+      { id: "goal", label: "¿Qué dejo de hacer con este dinero y cómo afecta mi meta?" },
+      { id: "fast", label: "¿Lo puedo comprar hoy?" }
+    ],
+    correctOptionId: "goal",
+    insight: "El costo de oportunidad aparece cuando comparas la compra con la alternativa que estás dejando."
+  },
+  lesson_wait_or_buy: {
+    title: "Refuerzo: practica la pausa",
+    prompt: "Una oferta termina hoy y no pensabas comprar el producto. ¿Qué haces?",
+    options: [
+      { id: "buy", label: "Comprar para no perderla" },
+      { id: "pause", label: "Esperar y revisar necesidad, presupuesto y metas" },
+      { id: "borrow", label: "Pedir dinero prestado" }
+    ],
+    correctOptionId: "pause",
+    insight: "La urgencia comercial no cambia tus prioridades financieras."
+  },
+  lesson_compare_before_spending: {
+    title: "Refuerzo: compara con criterio",
+    prompt: "¿Qué comparación es más completa antes de comprar?",
+    options: [
+      { id: "discount", label: "Solo el descuento" },
+      { id: "full", label: "Necesidad, utilidad, presupuesto e impacto en metas" },
+      { id: "brand", label: "La marca más conocida" }
+    ],
+    correctOptionId: "full",
+    insight: "Una buena decisión combina utilidad, precio y prioridades."
+  }
+};
