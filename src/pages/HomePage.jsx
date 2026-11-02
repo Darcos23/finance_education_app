@@ -1,62 +1,82 @@
-import { useNavigate } from "react-router-dom";
-
-import GoalCard from "../components/goals/GoalCard";
-import LearningPathCard from "../components/lessons/LearningPathCard";
-import Button from "../components/common/Button";
-import Card from "../components/common/Card";
-import EmptyState from "../components/common/EmptyState";
-import FinancialTrafficLight from "../components/common/FinancialTrafficLight";
-import MobileShell from "../components/layout/MobileShell";
-import TopBar from "../components/layout/TopBar";
-import BottomNav from "../components/layout/BottomNav";
-import { useAppContext } from "../context/AppContext";
-import { goalService, lessonService } from "../services";
-import AppIcon from "../utils/iconMap";
+import { ArrowRight, BookOpen, Calculator, Flame, Target } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
+import AppShell from "../components/layout/AppShell";
+import MinimumJourneyCard from "../components/experiment/MinimumJourneyCard";
+import ProgressBar from "../components/common/ProgressBar";
+import { LEARNING_PATHS } from "../data";
+import { useAuth } from "../context/AuthContext";
+import { useApp } from "../context/AppContext";
 
 export default function HomePage() {
-    const navigate = useNavigate();
-    const { user, version } = useAppContext();
-    const goals = goalService.getGoalsByUser(user.id);
-    const activeGoals = goals.filter((goal) => goal.status === "active");
-    const progress = lessonService.getUserLessonProgress(user.id);
-    const recommendedPath = lessonService.getRecommendedPaths(user)[0];
-    const completedThisWeek = progress.completedLessonIds.length;
+  const { user, profile } = useAuth();
+  const { triage, completedLessons, goals, experimentState, loadingData } = useApp();
+  if (!loadingData && !triage) return <Navigate to="/triage" replace />;
 
-    return (
-        <MobileShell topBar={<TopBar title="Inicio" subtitle="Tu resumen financiero" />} bottomNav={<BottomNav />}>
-            <section className="space-y-4" key={version}>
-                <div>
-                    <h2 className="text-2xl font-black text-brand-black">Hola, {user.name}</h2>
-                    <p className="text-sm font-medium text-slate-600">Hoy puedes dar un paso pequeno con tu dinero.</p>
-                </div>
+  const name = profile?.full_name || user?.user_metadata?.full_name || "Hola";
+  const firstName = name.split(" ")[0];
+  const recommended = LEARNING_PATHS.find(p => triage?.recommended_path_ids?.includes(p.id)) || LEARNING_PATHS[0];
+  const activeGoals = goals.filter(g => g.status === "active");
+  const nextLesson = recommended?.lessons?.find(l => !completedLessons.some(c => c.lesson_id === l.id)) || recommended?.lessons?.[0];
+  const completionDays = [...new Set(completedLessons
+    .map((item) => item.completed_at?.slice(0, 10))
+    .filter(Boolean))]
+    .sort((a, b) => b.localeCompare(a));
+  let streak = 0;
+  if (completionDays.length) {
+    const cursor = new Date();
+    const today = cursor.toISOString().slice(0, 10);
+    const yesterday = new Date(cursor.getTime() - 86400000).toISOString().slice(0, 10);
+    if ([today, yesterday].includes(completionDays[0])) {
+      let expected = new Date(`${completionDays[0]}T12:00:00`);
+      for (const day of completionDays) {
+        if (day !== expected.toISOString().slice(0, 10)) break;
+        streak += 1;
+        expected = new Date(expected.getTime() - 86400000);
+      }
+    }
+  }
 
-                <Card highlighted>
-                    <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-wide text-yellow-900/70">Meta semanal</p>
-                            <h3 className="mt-1 text-xl font-black text-brand-black">Completa {user.weeklyLearningGoal} lecciones</h3>
-                            <p className="mt-1 text-sm font-bold text-brand-black/70">Progreso: {Math.min(completedThisWeek, user.weeklyLearningGoal)} de {user.weeklyLearningGoal}</p>
-                        </div>
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white/70 text-brand-blue">
-                            <AppIcon name="Trophy" className="h-8 w-8" />
-                        </div>
-                    </div>
-                    <Button onClick={() => navigate("/learn")} className="mt-4 w-full">Continuar aprendiendo</Button>
-                </Card>
+  return (
+    <AppShell>
+      <section className="hero-card">
+        <span className="hero-chip">Tu siguiente paso</span>
+        <h1 style={{margin:"12px 0 6px",fontSize:"1.9rem"}}>Hola, {firstName}.</h1>
+        <p style={{margin:"0 0 18px"}}>{nextLesson ? `Continúa con “${nextLesson.title}”.` : "Explora una ruta y conviértela en una acción concreta."}</p>
+        <Link className="btn btn-yellow" to={nextLesson ? `/lesson/${nextLesson.id}` : "/learn"}>
+          {nextLesson ? "Continuar aprendiendo" : "Explorar rutas"} <ArrowRight size={18}/>
+        </Link>
+      </section>
 
-                <FinancialTrafficLight goals={goals} />
+      <div className="section-head"><h2>Tu progreso</h2><Link to="/profile">Ver detalle</Link></div>
+      <div className="metric-grid">
+        <div className="metric"><BookOpen size={19} color="#0068fb" style={{margin:"0 auto 5px"}}/><strong>{completedLessons.length}</strong><span>lecciones</span></div>
+        <div className="metric"><Target size={19} color="#1ba86b" style={{margin:"0 auto 5px"}}/><strong>{activeGoals.length}</strong><span>metas activas</span></div>
+        <div className="metric"><Flame size={19} color="#f2a100" style={{margin:"0 auto 5px"}}/><strong>{streak}</strong><span>racha</span></div>
+      </div>
 
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black">Tus metas activas</h3>
-                    <button onClick={() => navigate("/goals")} className="text-sm font-black text-brand-blue">Ver todas</button>
-                </div>
-                {activeGoals.length ? activeGoals.slice(0, 2).map((goal) => <GoalCard key={goal.id} goal={goal} />) : <EmptyState icon="Target" title="Aun no tienes metas" description="Crea una meta pequena para activar tu seguimiento." actionLabel="Crear meta" onAction={() => navigate("/goals")} />}
+      <div className="section-head"><h2>Ruta recomendada</h2><Link to="/learn">Ver todas</Link></div>
+      {recommended && (
+        <div className="card card-pad">
+          <span className="tag">Para ti</span>
+          <h3 style={{fontSize:"1.25rem",margin:"10px 0 5px"}}>{recommended.title}</h3>
+          <p className="page-subtitle" style={{marginBottom:12}}>{recommended.description}</p>
+          <ProgressBar value={(completedLessons.filter(l=>l.path_id===recommended.id).length / Math.max(recommended.lessons.length,1))*100}/>
+          <div style={{marginTop:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span className="form-note">{completedLessons.filter(l=>l.path_id===recommended.id).length} de {recommended.lessons.length} lecciones</span>
+            <Link className="btn btn-secondary" to={`/path/${recommended.id}`}>Abrir ruta</Link>
+          </div>
+        </div>
+      )}
 
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black">Ruta recomendada</h3>
-                </div>
-                {recommendedPath && <LearningPathCard path={recommendedPath} progress={progress} />}
-            </section>
-        </MobileShell>
-    );
+      <div className="section-head"><h2>Practica sin riesgo</h2><Link to="/simulators">Ver simuladores</Link></div>
+      <Link to="/simulators" className="soft-card" style={{display:"flex",alignItems:"center",gap:14}}>
+        <div className="list-icon"><Calculator/></div>
+        <div><strong>Prueba decisiones antes de la vida real</strong><div className="form-note">Ahorro, gastos, deuda y presupuesto con simuladores guiados.</div></div>
+      </Link>
+
+      <div style={{marginTop:18}}>
+        <MinimumJourneyCard state={experimentState}/>
+      </div>
+    </AppShell>
+  );
 }
