@@ -1,310 +1,227 @@
-# Prototipo funcional
+# FinPath v2 - prototipo experimental instrumentado
 
-Se presenta un prototipo funcional de tipo **aplicación web móvil**, desarrollado mediante **React, Vite y Tailwind CSS**. El objetivo principal de este desarrollo es demostrar la factibilidad técnica de construir, en un periodo inferior a una semana, un flujo mínimo orientado a la educación financiera, la definición de metas y el seguimiento del progreso, sin recurrir a integraciones bancarias, backend, APIs externas ni bases de datos externas.
+Esta versión reemplaza el prototipo local anterior por una aplicación web móvil con:
 
-## Funcionalidades implementadas
+- React + Vite.
+- Supabase Auth (cuentas reales de prueba con correo/contraseña).
+- PostgreSQL en Supabase para diagnóstico, lecciones, metas, simuladores, sesiones y funnel Premium.
+- Analítica propia por **usuario único** y por **sesión**, sin Meta Pixel.
+- Deduplicación de hitos importantes para que un mismo usuario no se cuente varias veces por repetir un toque.
+- Checkout simulado: **no procesa pagos ni guarda datos bancarios**.
+- UI/UX alineada con la nueva identidad de FinPath: `#fdbf04`, `#72b6fd`, `#449bfd`, `#0068fb`, `#003ea2`.
+- Simuladores determinísticos de gastos hormiga, ahorro, deuda y presupuesto.
+- Práctica adaptativa mínima en lecciones: si el usuario falla una pregunta, recibe un refuerzo adicional contextualizado.
 
-El sistema incorpora las siguientes funcionalidades:
+## Qué corrige respecto al prototipo anterior
 
-* Simulación de inicio de sesión local.
-* Disponibilidad de un usuario de demostración para pruebas rápidas.
-* Persistencia de sesión mediante `localStorage`.
-* Diagnóstico financiero inicial (triage) inspirado en dinámicas tipo Duolingo.
-* Clasificación del usuario en niveles financieros: principiante, intermedio o avanzado.
-* Recomendación de rutas de aprendizaje en función del nivel y los intereses identificados.
-* Implementación de rutas de aprendizaje con microlecciones interactivas.
-* Estructuración de lecciones en múltiples etapas: contenido, interacción, evaluación, resultado, acción y cierre.
-* Creación de metas a partir de plantillas predefinidas.
-* Creación de metas personalizadas.
-* Registro y seguimiento de avances.
-* Definición de hitos diarios para metas de hábito.
-* Visualización del progreso mediante barras de avance.
-* Implementación de un sistema de “semáforo financiero”.
-* Perfil de usuario con resumen de XP, lecciones completadas y metas alcanzadas.
-* Funcionalidades de reinicio del diagnóstico, cierre de sesión y eliminación completa de datos.
+El prototipo anterior persistía todo en `localStorage` y simulaba autenticación. Esta versión usa cuentas y base de datos reales para poder demostrar de forma trazable:
 
-## Tipos de metas soportadas
+1. usuarios registrados;
+2. diagnóstico completado;
+3. ruta explorada;
+4. uso de una funcionalidad central;
+5. recorrido mínimo completado;
+6. exposición a Premium;
+7. selección de Premium;
+8. checkout iniciado;
+9. datos de prueba completados;
+10. confirmación final de intención de compra.
 
-El sistema contempla los siguientes tipos de metas:
+Los hitos anteriores se registran una sola vez por usuario. Los eventos de navegación pueden ocurrir varias veces, pero las métricas del funnel se calculan con usuarios únicos.
 
-1. `saving_amount`: metas de ahorro basadas en un monto objetivo.
-2. `habit_streak`: metas de hábito con seguimiento diario.
-3. `expense_limit`: metas de control o límite de gasto.
-4. `lesson_completion`: metas asociadas a la finalización de lecciones.
+## Usuario único vs sesión
 
-## Tecnologías utilizadas
+- Antes del login se crea un `device_id` aleatorio en `localStorage`. Sirve únicamente para deduplicar visitas del mismo navegador/dispositivo y no utiliza fingerprinting.
+- Al registrarse/iniciar sesión, la unidad principal del experimento pasa a ser el `user_id` de Supabase Auth.
+- Cada apertura de una nueva sesión de navegador usa un `session_id` distinto en `sessionStorage`.
+- Una persona puede tener varias sesiones, pero los hitos del funnel se deduplican por cuenta.
+- Si alguien borra el almacenamiento del navegador o usa modo privado, puede aparecer como un nuevo dispositivo antes del login. Por eso las métricas centrales deben basarse en cuentas autenticadas, no en dispositivos.
 
-```bash
-React
-Vite
-Tailwind CSS
-React Router DOM
-Lucide React
-localStorage
-gh-pages
-```
+## Recorrido mínimo
 
-## Estructura del proyecto
+Se considera completado automáticamente cuando la misma cuenta:
 
-```text
-finhabits-prototipo/
-├── .gitignore
-├── README.md
-├── src/
-│   ├── App.jsx
-│   ├── main.jsx
-│   ├── index.css
-│   ├── data.js
-│   ├── services.js
-│   ├── storage.js
-│   ├── utils.js
-│   ├── router/
-│   │   └── AppRouter.jsx
-│   ├── context/
-│   │   └── AppContext.jsx
-│   ├── pages/
-│   │   ├── LoginPage.jsx
-│   │   ├── TriagePage.jsx
-│   │   ├── HomePage.jsx
-│   │   ├── LearnPage.jsx
-│   │   ├── LessonPage.jsx
-│   │   ├── GoalsPage.jsx
-│   │   ├── GoalFormPage.jsx
-│   │   ├── GoalDetailPage.jsx
-│   │   ├── ProfilePage.jsx
-│   │   └── NotFoundPage.jsx
-│   ├── components/
-│   │   ├── auth/
-│   │   │   └── LoginForm.jsx
-│   │   ├── common/
-│   │   │   ├── Badge.jsx
-│   │   │   ├── Button.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── EmptyState.jsx
-│   │   │   ├── FinancialTrafficLight.jsx
-│   │   │   └── ProgressBar.jsx
-│   │   ├── goals/
-│   │   │   ├── GoalCard.jsx
-│   │   │   ├── GoalForm.jsx
-│   │   │   └── GoalTemplateCard.jsx
-│   │   ├── layout/
-│   │   │   ├── BottomNav.jsx
-│   │   │   ├── MobileShell.jsx
-│   │   │   ├── ProtectedRoute.jsx
-│   │   │   └── TopBar.jsx
-│   │   ├── lessons/
-│   │   │   ├── LearningPathCard.jsx
-│   │   │   ├── LessonCard.jsx
-│   │   │   └── LessonStepCard.jsx
-│   │   └── triage/
-│   │       ├── TriageQuestionCard.jsx
-│   │       └── TriageResultCard.jsx
-│   └── utils/
-│       └── iconMap.jsx
-├── index.html
-├── package.json
-├── package-lock.json
-├── postcss.config.js
-├── tailwind.config.js
-└── vite.config.js
-```
+1. completa el diagnóstico;
+2. explora una ruta;
+3. utiliza al menos una funcionalidad central: completar una lección, crear/actualizar una meta o completar un simulador.
 
-## Ejecución en entorno local
+Solo entonces FinPath muestra de forma natural la oferta Premium dentro de la experiencia.
 
-1. Instalar las dependencias:
+## Checkout simulado
+
+El checkout tiene tres etapas:
+
+1. elegir un método de pago;
+2. completar campos de **prueba**;
+3. confirmar que finalizaría la compra por $9.000 COP.
+
+Los valores digitados en los campos de pago permanecen exclusivamente en el estado de React y **nunca se envían a Supabase**. Solo se guardan los hitos de avance.
+
+## 1. Instalar dependencias
 
 ```bash
 npm install
 ```
 
-2. Iniciar el servidor de desarrollo:
+## 2. Crear el proyecto de Supabase
+
+Crea un proyecto nuevo en Supabase.
+
+Después puedes desplegar la migración desde consola:
+
+```bash
+npx supabase init
+npx supabase login
+npx supabase link --project-ref TU_PROJECT_REF
+npx supabase db push --dry-run
+npx supabase db push
+```
+
+Si `supabase init` indica que el proyecto ya está inicializado, continúa con `login` y `link`.
+
+La migración que se aplica está en:
+
+```text
+supabase/migrations/202610220001_finpath_experiment.sql
+```
+
+Alternativa: copia `supabase/schema.sql` en **Supabase > SQL Editor** y ejecútalo.
+
+### Recomendación para la prueba controlada
+
+En **Authentication > Sign In / Providers > Email**, mantén email/password habilitado. Para reducir abandono durante el experimento puedes desactivar temporalmente la confirmación obligatoria de correo. Si la mantienes activa, configura correctamente las URLs de redirección del sitio desplegado.
+
+## 3. Crear variables de entorno
+
+Copia el archivo:
+
+```bash
+cp .env.example .env.local
+```
+
+En Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Completa:
+
+```env
+VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=TU_PUBLISHABLE_KEY
+VITE_EXPERIMENT_ID=afei-2026-2-b2c-v1
+```
+
+La URL y la publishable key se obtienen en el panel **Connect** del proyecto Supabase.
+
+> Nunca pongas la `service_role` key en Vite. La publishable key puede estar en el cliente porque la autorización real está protegida con Row Level Security (RLS).
+
+## 4. Ejecutar localmente
 
 ```bash
 npm run dev
 ```
 
-3. Acceder a la URL proporcionada por Vite, usualmente:
+Prueba al menos:
 
-```text
-http://localhost:5173
-```
+1. crear una cuenta;
+2. completar diagnóstico;
+3. abrir una ruta;
+4. completar una lección o simulador;
+5. verificar que se habilite Premium;
+6. entrar al checkout;
+7. completar la simulación;
+8. cerrar sesión y volver a entrar;
+9. confirmar que el progreso permanezca.
 
-## Protocolo de prueba del prototipo
-
-Se recomienda el siguiente flujo para la validación del sistema:
-
-1. Abrir la aplicación.
-2. Seleccionar la opción **Usar usuario demo**.
-3. Completar el diagnóstico financiero inicial.
-4. Analizar el nivel asignado, intereses y recomendaciones.
-5. Acceder a la sección **Aprender**.
-6. Seleccionar una ruta de aprendizaje.
-7. Iniciar una lección.
-8. Completar las etapas interactivas.
-9. Registrar un hábito desde la lección.
-10. Acceder a la sección **Metas**.
-11. Crear una meta a partir de una plantilla.
-12. Crear una meta personalizada.
-13. Consultar el detalle de una meta.
-14. Registrar avances financieros.
-15. Marcar hitos diarios (en caso de metas de hábito).
-16. Regresar a la pantalla principal y observar el semáforo financiero.
-17. Recargar la página para verificar la persistencia de datos mediante `localStorage`.
-
-## Construcción para producción
+## 5. Verificar build
 
 ```bash
 npm run build
-```
-
-Verificación del build:
-
-```bash
 npm run preview
 ```
 
-## Despliegue en GitHub Pages
+## 6. Consultar métricas
 
-El proyecto incluye el siguiente script:
+En Supabase > SQL Editor abre:
 
-```json
-"deploy": "gh-pages -d dist"
+```text
+supabase/metrics_queries.sql
 ```
 
-Procedimiento:
+Las consultas generan:
+
+- visitantes/dispositivos únicos;
+- participantes autenticados únicos;
+- sesiones;
+- funnel de uso;
+- usuarios por funcionalidad;
+- uso de práctica adaptativa;
+- funnel Premium;
+- dataset anonimizado por participante;
+- usuarios que recibieron práctica adaptativa;
+- usuarios que resolvieron correctamente el refuerzo adaptativo.
+
+## 7. Desplegar en Vercel
+
+### Opción rápida desde consola
 
 ```bash
-npm install
-npm run build
-npm run deploy
+npm install -g vercel
+vercel login
+vercel
 ```
 
-## Personalización del sistema
+Cuando pregunte:
 
-### Rutas de la aplicación
+- Framework: Vite.
+- Build command: `npm run build`.
+- Output directory: `dist`.
 
-Archivo:
+Añade las variables al proyecto:
 
-```text
-src/router/AppRouter.jsx
+```bash
+vercel env add VITE_SUPABASE_URL production --visibility config
+vercel env add VITE_SUPABASE_PUBLISHABLE_KEY production --visibility config
+vercel env add VITE_EXPERIMENT_ID production --visibility config
 ```
 
-Permite la gestión de rutas (creación, modificación o eliminación).
+Luego:
 
-### Páginas principales
-
-Directorio:
-
-```text
-src/pages/
+```bash
+vercel deploy --prod
 ```
 
-Cada vista principal se encuentra desacoplada en su propio archivo.
+El archivo `vercel.json` ya incluye el rewrite necesario para React Router.
 
-### Componentes reutilizables
+### Después del despliegue
 
-Directorio:
+Si la confirmación de correo está activa, agrega el dominio final de Vercel a las URLs permitidas de Supabase Auth.
 
-```text
-src/components/
-```
+## 8. Qué NO contar como evidencia
 
-Organizados por dominio funcional: `common`, `layout`, `goals`, `lessons`, `triage` y `auth`.
+No usar:
 
-### Configuración de interfaz móvil
+- número bruto de clics como equivalente a usuarios;
+- page views como uso real;
+- eventos repetidos como personas distintas;
+- confirmación del checkout simulado como una venta real.
 
-Archivo:
+Usar:
 
-```text
-src/components/layout/MobileShell.jsx
-```
+- usuarios autenticados únicos;
+- porcentaje que completa diagnóstico;
+- porcentaje que completa el recorrido mínimo;
+- porcentaje que usa práctica adaptativa;
+- porcentaje de elegibles que selecciona Premium;
+- porcentaje que llega al checkout y a la confirmación final.
 
-Define restricciones de dimensiones para mantener consistencia visual en dispositivos móviles.
+## 9. Límites de esta versión
 
-### Gestión de iconografía
-
-Archivo:
-
-```text
-src/utils/iconMap.jsx
-```
-
-Centraliza la asignación de iconos mediante `lucide-react`.
-
-### Configuración general de la aplicación
-
-Archivo:
-
-```text
-src/data.js
-```
-
-Incluye parámetros como nombre y eslogan de la aplicación.
-
-### Configuración de estilos
-
-Archivo:
-
-```text
-tailwind.config.js
-```
-
-Define la paleta cromática del sistema.
-
-### Configuración del triage, rutas y metas
-
-Archivo:
-
-```text
-src/data.js
-```
-
-Contiene:
-
-* `TRIAGE_QUESTIONS`
-* `LEARNING_PATHS`
-* `GOAL_TEMPLATES`
-
-## Lógica de negocio
-
-### Persistencia
-
-Archivo:
-
-```text
-src/storage.js
-```
-
-Claves utilizadas en `localStorage`:
-
-```text
-finance_app_user
-finance_app_session
-finance_app_triage_result
-finance_app_goals
-finance_app_lesson_progress
-```
-
-### Servicios
-
-Archivo:
-
-```text
-src/services.js
-```
-
-Incluye módulos especializados en autenticación, usuario, diagnóstico, metas y lecciones.
-
-### Utilidades
-
-Archivo:
-
-```text
-src/utils.js
-```
-
-Contiene funciones auxiliares para generación de identificadores, manejo de fechas, cálculos y formateo.
-
-## Nota final
-
-Este prototipo no constituye una aplicación financiera en entorno productivo. Se trata de una evidencia técnica con fines académicos, orientada a validar la viabilidad de implementar un flujo básico de educación financiera, establecimiento de metas y seguimiento del progreso sin depender de integraciones externas.
+- No tiene integración bancaria.
+- No procesa pagos reales.
+- Los simuladores son determinísticos; no usan IA.
+- La práctica adaptativa actual usa reglas simples basadas en errores de lección.
+- No debe presentarse como asesoría financiera.
+- Está diseñada para un experimento académico controlado, no como producto financiero en producción.
