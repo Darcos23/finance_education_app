@@ -36,6 +36,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_EXPERIMENT_ID: afei-2026-2-b2c-v1
+          # El sitio vive en https://<usuario>.github.io/<repo>/
+          BASE_PATH: /${{ github.event.repository.name }}/
 
       # GitHub Pages no tiene rewrites: con 404.html, recargar /fin, /premium/demo, etc. abre la app.
       - name: Fallback para rutas de React Router
