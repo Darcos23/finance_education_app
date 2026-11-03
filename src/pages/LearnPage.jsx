@@ -5,8 +5,9 @@ import { LEARNING_PATHS } from "../data";
 import { useApp } from "../context/AppContext";
 
 export default function LearnPage() {
-  const { triage, lessons, loadingData } = useApp();
-  if (!loadingData && !triage) return <Navigate to="/triage" replace />;
+  const { triage, lessons, loadingData, hydrated, dataError } = useApp();
+  if (dataError) return <AppShell><div className="error-box">No se pudo cargar FinPath: {dataError}. Revisa la conexión y la migración v5.</div></AppShell>;
+  if (hydrated && !loadingData && !triage) return <Navigate to="/triage" replace />;
 
   const recommendedIds = new Set(triage?.recommended_path_ids || []);
   const ordered = [...LEARNING_PATHS].sort((a,b) => Number(recommendedIds.has(b.id)) - Number(recommendedIds.has(a.id)));
