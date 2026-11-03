@@ -6,124 +6,48 @@ import ProgressBar from "../components/common/ProgressBar";
 import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
 import { appService } from "../services/appService";
+import { expenseInPeriod,periodType } from "../lib/goalPeriods";
 
-const money = (value) => `$${Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}`;
-
-export default function GoalDetailPage() {
-  const { goalId } = useParams();
-  const { user } = useAuth();
-  const { goals, refresh } = useApp();
-  const navigate = useNavigate();
-  const [amount, setAmount] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const goal = goals.find((item) => item.id === goalId);
-  if (!goal) return <AppShell><div className="empty">Meta no encontrada.</div></AppShell>;
-
-  const target = ["saving_amount", "expense_limit"].includes(goal.type)
-    ? Number(goal.target_amount || 0)
-    : Number(goal.target_value || 0);
-  const current = ["saving_amount", "expense_limit"].includes(goal.type)
-    ? Number(goal.current_amount || 0)
-    : Number(goal.current_value || 0);
-  const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0;
-
-  const presentation = (() => {
-    if (goal.type === "saving_amount") return {
-      title: "Registrar ahorro",
-      help: "Añade cuánto avanzaste hacia tu meta.",
-      action: "Guardar aporte",
-      input: true,
-      currentLabel: money(current),
-      targetLabel: money(target),
-    };
-    if (goal.type === "expense_limit") return {
-      title: "Registrar gasto",
-      help: "Añade un gasto para observar cuánto del límite ya utilizaste.",
-      action: "Guardar gasto",
-      input: true,
-      currentLabel: `${money(current)} usados`,
-      targetLabel: `Límite ${money(target)}`,
-    };
-    if (goal.type === "habit_streak") return {
-      title: "Registrar día cumplido",
-      help: "Marca un día cuando hayas realizado el hábito propuesto.",
-      action: "Marcar hoy como cumplido",
-      input: false,
-      currentLabel: `${current} días`,
-      targetLabel: `${target} días`,
-    };
-    return {
-      title: "Progreso automático",
-      help: "Esta meta avanza cuando completas lecciones dentro de FinPath.",
-      action: null,
-      input: false,
-      currentLabel: `${current} lecciones`,
-      targetLabel: `${target} lecciones`,
-    };
-  })();
-
-  const add = async (event) => {
-    event?.preventDefault?.();
-    setBusy(true);
-    try {
-      await appService.addGoalProgress(user, goal, presentation.input ? amount : 1);
-      setAmount("");
-      await refresh();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const danger = goal.type === "expense_limit" && target > 0 && current > target;
-
-  return (
-    <AppShell>
-      <button className="icon-btn" onClick={() => navigate("/goals")} aria-label="Volver a metas"><ArrowLeft /></button>
-
-      <div className="card card-pad" style={{ marginTop: 12 }}>
-        <div className="list-icon"><Target /></div>
-        <h1 style={{ fontSize: "1.8rem", margin: "12px 0 6px" }}>{goal.title}</h1>
-        <p className="page-subtitle">{goal.description}</p>
-        {target > 0 && (
-          <>
-            <ProgressBar value={progress} yellow={goal.type === "expense_limit"} />
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 8, fontWeight: 800, color: "#003ea2", fontSize: ".82rem" }}>
-              <span>{presentation.currentLabel}</span>
-              <span>{Math.round(progress)}%</span>
-              <span>{presentation.targetLabel}</span>
-            </div>
-          </>
-        )}
-        {danger && <div className="warning-box" style={{ marginTop: 12 }}>Superaste el límite definido. Úsalo como señal para revisar qué gasto puedes ajustar.</div>}
-      </div>
-
-      {goal.status !== "completed" && goal.type !== "lesson_completion" && (
-        <form className="card card-pad" onSubmit={add}>
-          <h2 style={{ margin: "0 0 6px", fontSize: "1.15rem" }}>{presentation.title}</h2>
-          <p className="page-subtitle">{presentation.help}</p>
-          {presentation.input && (
-            <div className="field">
-              <label className="input-label">Monto</label>
-              <input className="input" type="number" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </div>
-          )}
-          <button className="btn btn-primary btn-block" disabled={busy || (presentation.input && !amount)}>
-            {busy ? "Guardando…" : presentation.action}
-          </button>
-        </form>
-      )}
-
-      {goal.type === "lesson_completion" && goal.status !== "completed" && (
-        <div className="card card-pad">
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}><CircleDollarSign color="#0068fb" /><strong>{presentation.title}</strong></div>
-          <p className="page-subtitle" style={{ margin: "10px 0 0" }}>{presentation.help}</p>
-        </div>
-      )}
-
-      {goal.status === "completed" && (
-        <div className="success-box" style={{ marginTop: 14 }}><CheckCircle2 size={17} style={{ verticalAlign: "middle" }} /> ¡Meta lograda! Este progreso quedó guardado en FinPath.</div>
-      )}
-    </AppShell>
-  );
+const money=(value)=>`$${Number(value||0).toLocaleString('es-CO',{maximumFractionDigits:0})}`;
+export default function GoalDetailPage(){
+  const {goalId}=useParams(),{user}=useAuth(),{goals,goalEntries,refresh}=useApp(),navigate=useNavigate();
+  const [amount,setAmount]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const goal=goals.find(item=>item.id===goalId);
+  if(!goal)return <AppShell><div className="empty">Meta no encontrada.</div></AppShell>;
+  const amountGoal=['saving_amount','expense_limit','debt_payoff'].includes(goal.type);
+  const target=Number(amountGoal?goal.target_amount:goal.target_value)||0;
+  const current=goal.type==='expense_limit'?expenseInPeriod(goal,goalEntries):Number(amountGoal?goal.current_amount:goal.current_value)||0;
+  const progress=target>0?Math.min(100,current/target*100):0;
+  const pending=Math.max(0,target-current),danger=goal.type==='expense_limit'&&current>target;
+  const presentation=goal.type==='saving_amount'?{title:'Registrar ahorro',help:'Añade cuánto avanzaste hacia tu meta.',action:'Guardar aporte',input:true}:
+    goal.type==='debt_payoff'?{title:'Registrar abono',help:`Saldo pendiente: ${money(pending)}. No almacenes datos bancarios.`,action:'Guardar abono',input:true}:
+    goal.type==='expense_limit'?{title:'Registrar gasto',help:`Este ${periodType(goal)==='month'?'mes':'semana'} has utilizado ${money(current)} de ${money(target)}.`,action:'Guardar gasto',input:true}:
+    goal.type==='habit_streak'?{title:'Registrar día cumplido',help:'Marca el día cuando hayas realizado el hábito.',action:'Marcar hoy como cumplido',input:false}:
+    {title:'Progreso automático',help:'Esta meta avanza cuando completas lecciones.',action:null,input:false};
+  const run=async(fn)=>{setBusy(true);setError('');try{await fn();await refresh();setAmount('');}catch(e){setError(e.message||'No se pudo guardar.');}finally{setBusy(false);}};
+  const add=e=>{e.preventDefault();run(()=>appService.addGoalProgress(user,goal,presentation.input?Number(amount):1));};
+  const archive=()=>{if(window.confirm('¿Archivar esta meta? No se borrará su historial.'))run(()=>appService.archiveGoal(user,goal.id));};
+  const entries=goalEntries.filter(e=>e.goal_id===goal.id);
+  const undo=()=>{if(window.confirm('¿Deshacer el último registro de esta meta?'))run(()=>appService.undoLastGoalEntry(user,goal));};
+  return <AppShell>
+    <button className="icon-btn" onClick={()=>navigate('/goals')} aria-label="Volver a metas"><ArrowLeft/></button>
+    <div className="card card-pad" style={{marginTop:12}}><div className="list-icon"><Target/></div>
+      <h1 style={{fontSize:'1.8rem',margin:'12px 0 6px'}}>{goal.title}</h1><p className="page-subtitle">{goal.description}</p>
+      {goal.status==='archived'&&<div className="info-box">Meta archivada; tu historial permanece disponible.</div>}
+      {target>0&&<><ProgressBar value={progress} yellow={goal.type==='expense_limit'}/>
+      <div className="form-note" style={{marginTop:8}}>{amountGoal?money(current):`${current} días`} / {amountGoal?money(target):`${target} días`} · {Math.round(progress)}%</div></>}
+      {goal.type==='debt_payoff'&&<strong>Saldo pendiente: {money(pending)}</strong>}
+      {danger&&<div className="warning-box" style={{marginTop:12}}>Superaste el límite del periodo. Revisa qué puedes ajustar.</div>}
+    </div>
+    {goal.status==='active'&&goal.type!=='lesson_completion'&&<form className="card card-pad" onSubmit={add}>
+      <h2 style={{margin:'0 0 6px',fontSize:'1.15rem'}}>{presentation.title}</h2><p className="page-subtitle">{presentation.help}</p>
+      {presentation.input&&<div className="field"><label className="input-label">Monto</label><input className="input" type="number" min="1" required value={amount} onChange={e=>setAmount(e.target.value)}/></div>}
+      <button className="btn btn-primary btn-block" disabled={busy||(presentation.input&&Number(amount)<=0)}>{busy?'Guardando…':presentation.action}</button>
+    </form>}
+    {goal.type==='lesson_completion'&&goal.status==='active'&&<div className="card card-pad"><div style={{display:'flex',gap:10,alignItems:'center'}}><CircleDollarSign color="#0068fb"/><strong>Progreso automático</strong></div><p>{presentation.help}</p></div>}
+    {goal.status==='completed'&&<div className="success-box" style={{marginTop:14}}><CheckCircle2 size={17}/> ¡Meta lograda!</div>}
+    {error&&<div className="error-box">{error}</div>}
+    {entries.length>0&&goal.status!=='archived'&&<button className="btn btn-secondary btn-block" style={{marginTop:12}} disabled={busy} onClick={undo}>Deshacer último registro</button>}
+    {goal.status!=='archived'&&<button className="btn btn-ghost btn-block" style={{marginTop:10}} disabled={busy} onClick={archive}>Archivar meta</button>}
+  </AppShell>;
 }
