@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Building2, CheckCircle2, CreditCard, ShieldCheck, Smartphone } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
+import DeclineReasons from "../components/experiment/DeclineReasons";
 import { useAuth } from "../context/AuthContext";
+import { useApp } from "../context/AppContext";
 import { analytics } from "../lib/analytics";
 import { appService } from "../services/appService";
 
@@ -15,6 +17,7 @@ const methods = [
 export default function CheckoutPage() {
   const { attemptId } = useParams();
   const { user } = useAuth();
+  const { refresh } = useApp();
   const navigate = useNavigate();
   const [step,setStep]=useState(1);
   const [method,setMethod]=useState("");
@@ -23,6 +26,8 @@ export default function CheckoutPage() {
   const [busy,setBusy]=useState(false);
   const [declining,setDeclining]=useState(false);
   const [declineReason,setDeclineReason]=useState("");
+  const [error,setError]=useState("");
+  const failed=(e)=>setError(e?.message||"No se pudo registrar este paso. Revisa tu conexión e inténtalo de nuevo.");
 
   const detailsReady=useMemo(()=>{
     if(method==="card") return form.holder && form.card && form.exp && form.cvc;
@@ -32,15 +37,18 @@ export default function CheckoutPage() {
   },[form,method]);
 
   const nextMethod=async()=>{
-    if(!method) return;
-    await appService.updateCheckout(user,attemptId,{payment_method:method});
-    setStep(2);
+    if(!method||busy) return;
+    setBusy(true);setError("");
+    try{
+      await appService.updateCheckout(user,attemptId,{payment_method:method});
+      setStep(2);
+    }catch(e){failed(e);}finally{setBusy(false);}
   };
 
   const detailsComplete=async(e)=>{
     e.preventDefault();
-    if(!detailsReady) return;
-    setBusy(true);
+    if(!detailsReady||busy) return;
+    setBusy(true);setError("");
     try{
       // IMPORTANTE: los datos del formulario NO se envían a Supabase.
       await appService.updateCheckout(user,attemptId,{
@@ -49,11 +57,12 @@ export default function CheckoutPage() {
       });
       await analytics.once("checkout_details_completed",{user,properties:{payment_method:method}});
       setStep(3);
-    } finally {setBusy(false);}
+    }catch(e){failed(e);} finally {setBusy(false);}
   };
 
   const confirm=async()=>{
-    setBusy(true);
+    if(busy) return;
+    setBusy(true);setError("");
     try{
       await appService.updateCheckout(user,attemptId,{
         confirmed_at:new Date().toISOString(),
@@ -61,21 +70,27 @@ export default function CheckoutPage() {
       });
       await analytics.once("checkout_confirmed",{user,properties:{payment_method:method,price:9000}});
       setDone(true);
-    } finally {setBusy(false);}
+    }catch(e){failed(e);} finally {setBusy(false);}
   };
 
-  const decline=async()=>{
-    setBusy(true);
+  // El motivo llega desde DeclineReasons. Los datos de pago se borran del estado y nunca salen de React.
+  const decline=async(reason=declineReason)=>{
+    if(busy) return;
+    setBusy(true);setError("");
     try{
       await appService.updateCheckout(user,attemptId,{status:'abandoned'});
-      await analytics.once('checkout_declined',{user,properties:{step,reason:declineReason}});
-      setForm({});navigate('/app');
-    }finally{setBusy(false);}
+      await analytics.once('checkout_declined',{user,properties:{step,reason}});
+      setForm({});await refresh();navigate('/fin');
+    }catch(e){failed(e);}finally{setBusy(false);}
   };
-  const declineOptions=[
-    ['price_high','Precio alto'],['not_now','No lo necesito ahora'],
-    ['trust','No confío en pagar en línea'],['more_free','Quiero probar más la versión gratis'],['other','Otro']
-  ];
+  const confirmDecline=(reason)=>{setDeclineReason(reason);decline(reason);};
+  const finishCheckout=async()=>{
+    if(busy) return;
+    setBusy(true);
+    try{await refresh();}finally{setBusy(false);}
+    navigate('/fin');
+  };
+  const declineButton=<button type="button" className="btn btn-secondary btn-block" style={{marginTop:10}} disabled={busy} onClick={()=>setDeclining(true)}>No, volver a FinPath Free</button>;
   return <AppShell>
     <span className="eyebrow"><ShieldCheck size={14}/> Checkout</span>
     <h1 className="page-title">FinPath Premium</h1>
@@ -84,16 +99,19 @@ export default function CheckoutPage() {
     </div> */}
     <div className="checkout-steps">{[1,2,3].map(n=><div key={n} className={`checkout-dot ${step>=n?"active":""}`}/>)}</div>
 
-    {step===1&&<div className="card card-pad">
+    {declining&&!done&&<DeclineReasons busy={busy} onConfirm={confirmDecline} onCancel={()=>setDeclining(false)}/>}
+
+    {!declining&&step===1&&<div className="card card-pad">
       <h2 style={{marginTop:0}}>1. Elige cómo pagarías</h2>
       {/* <p className="page-subtitle">Este paso mide si avanzas más allá del interés inicial.</p> */}
       <div className="payment-methods">
         {methods.map(([id,label,Icon])=><button key={id} className={`payment-method ${method===id?"selected":""}`} onClick={()=>setMethod(id)}><span style={{display:"flex",gap:10,alignItems:"center"}}><Icon size={20}/><strong>{label}</strong></span>{method===id&&<CheckCircle2 size={20} color="#0068fb"/>}</button>)}
       </div>
-      <button className="btn btn-primary btn-block" style={{marginTop:14}} disabled={!method} onClick={nextMethod}>Continuar</button>
+      <button className="btn btn-primary btn-block" style={{marginTop:14}} disabled={!method||busy} onClick={nextMethod}>Continuar</button>
+      {declineButton}
     </div>}
 
-    {step===2&&<form className="card card-pad" onSubmit={detailsComplete} autoComplete="off">
+    {!declining&&step===2&&<form className="card card-pad" onSubmit={detailsComplete} autoComplete="off">
       <h2 style={{marginTop:0}}>2. Completa datos</h2>
       {/* <p className="page-subtitle">Estos valores permanecen solo en esta pantalla y no se guardan ni se envían a la base de datos.</p> */}
       {method==="card"&&<>
@@ -130,20 +148,23 @@ export default function CheckoutPage() {
         <div className="field"><label className="input-label">Tipo de persona</label><select autoComplete="off" name="fp_simulated_select" className="input" value={form.personType||""} onChange={e=>setForm({...form,personType:e.target.value})} required><option value="">Selecciona</option><option>Natural</option><option>Jurídica</option></select></div>
       </>}
       <button className="btn btn-primary btn-block" disabled={busy||!detailsReady}>{busy?"Registrando etapa…":"Continuar a confirmación"}</button>
+      {declineButton}
     </form>}
 
-    {step===3&&!done&&<div className="card card-pad">
+    {!declining&&step===3&&!done&&<div className="card card-pad">
       <h2 style={{marginTop:0}}>3. ¿Confirmarías la compra?</h2>
       {/* <p className="page-subtitle">Si esto fuera la versión comercial, el siguiente botón enviaría el pago de <strong>$9.000 COP</strong>. En esta prueba no procesará dinero.</p> */}
       <button className="btn btn-yellow btn-block" disabled={busy} onClick={confirm}>{busy?"Registrando…":"Sí, finalizaría la compra por $9.000"}</button>
-      <button className="btn btn-secondary btn-block" style={{marginTop:10}} onClick={()=>setDeclining(true)}>No, volver a FinPath Free</button>
+      {declineButton}
     </div>}
 
     {done&&<div className="card card-pad">
       <div className="list-icon" style={{background:"#ebfaf3",color:"#1ba86b"}}><CheckCircle2/></div>
       <h2>Gracias. La prueba terminó aquí.</h2>
       <p className="page-subtitle">No se realizó ningún cobro. Registramos únicamente que llegaste hasta la confirmación final de intención de compra.</p>
-      <button className="btn btn-primary btn-block" onClick={()=>navigate("/app")}>Volver a FinPath</button>
+      <button className="btn btn-primary btn-block" disabled={busy} onClick={finishCheckout}>Continuar</button>
     </div>}
+
+    {error&&<div className="error-box" style={{marginTop:12}}>{error}</div>}
   </AppShell>
 }
