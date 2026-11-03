@@ -1,9 +1,11 @@
 import { supabase } from "../lib/supabase";
 import { analytics } from "../lib/analytics";
+import { bogotaDay } from "../lib/streak";
+import { getFirstTouch } from "../lib/attribution";
 import { GOAL_TEMPLATES, LEARNING_PATHS, TRIAGE_QUESTIONS } from "../data";
 
 const optionFor = (questionId, optionId) =>
-  TRIAGE_QUESTIONS.find((q) => q.id === questionId)?.options.find((o) => o.id === optionId);
+  TRIAGE_QUESTIONS.find((q) => q.id === questionId && !q.profileOnly)?.options.find((o) => o.id === optionId);
 
 export function calculateTriage(answers) {
   const totalScore = Object.entries(answers).reduce(
@@ -46,7 +48,7 @@ export const appService = {
     const { data, error } = await supabase.from("triage_results")
       .upsert(payload, { onConflict: "user_id" }).select().single();
     if (error) throw error;
-    await analytics.once("triage_completed", { user, properties: { level: result.level } });
+    await analytics.once("triage_completed", { user, properties: { level: result.level, ...getFirstTouch() } });
     return data;
   },
 
@@ -64,19 +66,19 @@ export const appService = {
 
   async upsertLessonProgress(user, { lessonId, pathId, status, currentStep = 0, score = null, errorTags = [] }) {
     const now = new Date().toISOString();
-    const existing = await supabase.from("lesson_progress").select("id,started_at,completed_at,status")
+    const existing = await supabase.from("lesson_progress").select("id,started_at,completed_at,status,error_tags,score")
       .eq("user_id", user.id).eq("lesson_id", lessonId).maybeSingle();
     if (existing.error) throw existing.error;
     const payload = {
       user_id: user.id,
       lesson_id: lessonId,
       path_id: pathId,
-      status,
+      status: existing.data?.status === "completed" ? "completed" : status,
       current_step: currentStep,
-      score,
-      error_tags: errorTags,
+      score: existing.data?.status === 'completed' ? (existing.data?.score ?? score) : (status === 'completed' ? score : (existing.data?.score ?? score)),
+      error_tags: [...new Set([...(existing.data?.error_tags || []), ...errorTags])],
       started_at: existing.data?.started_at || now,
-      completed_at: status === "completed" ? (existing.data?.completed_at || now) : null,
+      completed_at: existing.data?.completed_at || (status === "completed" ? now : null),
       updated_at: now,
     };
     const { data, error } = await supabase.from("lesson_progress")
@@ -100,6 +102,7 @@ export const appService = {
       }
     }
 
+    if (status === "completed") await this.recordActiveDay(user);
     return data;
   },
 
@@ -120,35 +123,25 @@ export const appService = {
     };
     const { data, error } = await supabase.from("goals").insert(payload).select().single();
     if (error) throw error;
-    await analytics.once("goal_created", { user, objectType: "goal", objectId: data.id, properties: { type: data.type } });
+    await analytics.once("goal_created", { user, objectType: "goal", objectId: data.id, properties: { type: data.type, ...(values.source ? {source: values.source} : {}) } });
     return data;
   },
 
 
 
-  async createGoalFromTemplate(user, template) {
-    const values = {
-      templateId: template.id,
-      title: template.title,
-      description: template.description,
-      type: template.type,
-      targetAmount: ["saving_amount", "expense_limit"].includes(template.type)
-        ? Number(template.defaultTargetAmount || 0)
-        : 0,
-      targetValue: template.type === "habit_streak"
-        ? Number(template.defaultDurationDays || 0)
-        : template.type === "lesson_completion"
-          ? Number(template.defaultTargetLessons || 0)
-          : 0,
-      unit: template.type === "habit_streak"
-        ? "días"
-        : template.type === "lesson_completion"
-          ? "lecciones"
-          : template.type === "expense_limit"
-            ? "COP gastados"
-            : "COP ahorrados",
+  async createGoalFromTemplate(user, template, source = null) {
+    const duration=Number(template.defaultDurationDays || 0);
+    const targetDate=duration ? new Date(Date.now()+duration*86400000).toISOString().slice(0,10) : null;
+    const values={
+      templateId:template.id,title:template.title,description:template.description,type:template.type,
+      targetAmount:["saving_amount","expense_limit","debt_payoff"].includes(template.type) ? Number(template.defaultTargetAmount||0) : 0,
+      targetValue:template.type==="habit_streak"?duration:template.type==="lesson_completion"?Number(template.defaultTargetLessons||0):0,
+      unit:template.type==="habit_streak"?"días":template.type==="lesson_completion"?"lecciones":
+        template.type==="expense_limit" ? (duration>=28?'COP gastados/mes':'COP gastados/semana'):
+        template.type==="debt_payoff" ? "COP abonados" : "COP ahorrados",
+      targetDate: template.type==='expense_limit'?null:targetDate,source
     };
-    return this.createGoal(user, values);
+    return this.createGoal(user,values);
   },
 
   async getGoals(userId) {
@@ -158,38 +151,62 @@ export const appService = {
   },
 
   async addGoalProgress(user, goal, amount = 0) {
-    const value = Number(amount || 0);
-    const now = new Date().toISOString();
-    const updates = { updated_at: now };
-    let entryAmount = value;
-
-    if (goal.type === "saving_amount") {
-      const next = Number(goal.current_amount || 0) + value;
-      updates.current_amount = next;
-      updates.status = Number(goal.target_amount || 0) > 0 && next >= Number(goal.target_amount) ? "completed" : "active";
-    } else if (goal.type === "expense_limit") {
-      updates.current_amount = Number(goal.current_amount || 0) + value;
-      updates.status = "active";
-    } else if (goal.type === "habit_streak") {
-      const next = Math.min(Number(goal.target_value || 0), Number(goal.current_value || 0) + 1);
-      updates.current_value = next;
-      updates.status = Number(goal.target_value || 0) > 0 && next >= Number(goal.target_value) ? "completed" : "active";
-      entryAmount = 1;
-    } else {
-      return goal;
+    if (goal.status !== "active") throw new Error("Esta meta no está activa.");
+    const value=goal.type==='habit_streak'?1:Number(amount);
+    if (!Number.isFinite(value) || value <= 0) throw new Error("Introduce un avance positivo.");
+    if(goal.type==='habit_streak'){
+      const {data:previous,error:previousError}=await supabase.from('goal_entries').select('created_at')
+        .eq('user_id',user.id).eq('goal_id',goal.id).eq('entry_type','check_in')
+        .order('created_at',{ascending:false}).limit(1);
+      if(previousError)throw previousError;
+      if(previous?.length && bogotaDay(previous[0].created_at)===bogotaDay())
+        throw new Error('Ya registraste este hábito hoy. Puedes volver mañana.');
     }
+    const now=new Date().toISOString(),updates={updated_at:now};
+    if(["saving_amount","debt_payoff","expense_limit"].includes(goal.type)) {
+      const next=Number(goal.current_amount||0)+value;
+      updates.current_amount=next;
+      updates.status=goal.type==='expense_limit'?'active':
+        (Number(goal.target_amount||0)>0 && next>=Number(goal.target_amount)?'completed':'active');
+    } else if(goal.type==='habit_streak'){
+      const next=Math.min(Number(goal.target_value||0),Number(goal.current_value||0)+1);
+      updates.current_value=next;
+      updates.status=next>=Number(goal.target_value||0)?'completed':'active';
+    } else return goal;
+    const type=goal.type==='expense_limit'?'expense':goal.type==='habit_streak'?'check_in':
+      goal.type==='debt_payoff'?'debt_payment':'contribution';
+    // Inserta el movimiento primero. Si falla, no incrementa el total de la meta.
+    const {data:entry,error:entryError}=await supabase.from('goal_entries').insert({
+      goal_id:goal.id,user_id:user.id,amount:value,entry_type:type
+    }).select().single();
+    if(entryError)throw entryError;
+    const {data,error}=await supabase.from('goals').update(updates)
+      .eq('id',goal.id).eq('user_id',user.id).select().single();
+    if(error){await supabase.from('goal_entries').delete().eq('id',entry.id).eq('user_id',user.id);throw error;}
+    await analytics.once('goal_progress_registered',{user,objectType:'goal',objectId:goal.id});
+    await this.recordActiveDay(user);
+    return data;
+  },
 
-    const { data, error } = await supabase.from("goals").update(updates)
-      .eq("id", goal.id).eq("user_id", user.id).select().single();
-    if (error) throw error;
+  async archiveGoal(user,goalId){
+    const {data,error}=await supabase.from('goals').update({status:'archived',updated_at:new Date().toISOString()})
+      .eq('id',goalId).eq('user_id',user.id).select().single();
+    if(error)throw error;return data;
+  },
 
-    await supabase.from("goal_entries").insert({
-      goal_id: goal.id,
-      user_id: user.id,
-      amount: entryAmount,
-      entry_type: goal.type === "habit_streak" ? "check_in" : goal.type === "expense_limit" ? "expense" : "contribution",
-    });
-    await analytics.once("goal_progress_registered", { user, objectType: "goal", objectId: goal.id });
+  async undoLastGoalEntry(user,goal){
+    const {data:entry,error:firstError}=await supabase.from('goal_entries').select('*')
+      .eq('goal_id',goal.id).eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(firstError)throw firstError;
+    if(!entry)return null;
+    const {error:deleteError}=await supabase.from('goal_entries').delete().eq('id',entry.id).eq('user_id',user.id);
+    if(deleteError)throw deleteError;
+    const isAmount=['saving_amount','debt_payoff','expense_limit'].includes(goal.type);
+    const updates={updated_at:new Date().toISOString(),status:'active'};
+    if(isAmount)updates.current_amount=Math.max(0,Number(goal.current_amount||0)-Number(entry.amount||0));
+    else updates.current_value=Math.max(0,Number(goal.current_value||0)-Number(entry.amount||1));
+    const {data,error}=await supabase.from('goals').update(updates).eq('id',goal.id).eq('user_id',user.id).select().single();
+    if(error)throw error;
     return data;
   },
 
@@ -201,6 +218,7 @@ export const appService = {
     });
     if (error) throw error;
     await analytics.once("simulator_completed", { user, objectType: "simulator", objectId: simulatorId, properties: { result_code: resultCode } });
+    await this.recordActiveDay(user);
   },
 
   async getExperimentState(userId) {
@@ -227,5 +245,46 @@ export const appService = {
       .eq("id", attemptId).eq("user_id", user.id).select().single();
     if (error) throw error;
     return data;
+  },
+  async recordActiveDay(user){
+    return analytics.once('active_day',{user,objectType:'day',objectId:bogotaDay()});
+  },
+  async getGoalEntries(userId){
+    const {data,error}=await supabase.from('goal_entries').select('*').eq('user_id',userId);
+    if(error)throw error;return data||[];
+  },
+  async getSimulatorRuns(userId){
+    const {data,error}=await supabase.from('simulator_runs').select('*').eq('user_id',userId);
+    if(error)throw error;return data||[];
+  },
+  async getActiveDays(userId){
+    const {data,error}=await supabase.from('analytics_events').select('object_id').eq('user_id',userId).eq('event_name','active_day');
+    if(error)throw error;return (data||[]).map(x=>x.object_id).filter(Boolean);
+  },
+  async getSkillChecks(userId){
+    const {data,error}=await supabase.from('skill_checks').select('*').eq('user_id',userId);
+    if(error)throw error;return data||[];
+  },
+  async saveSkillCheck(user,{kind,score,answers,lessonsCompleted}){
+    const {data,error}=await supabase.from('skill_checks').insert({
+      user_id:user.id,kind,score,answers,lessons_completed_at_submission:lessonsCompleted
+    }).select().single();
+    if(error)throw error;return data;
+  },
+  async getBenefitCheckins(userId){
+    const {data,error}=await supabase.from('benefit_checkins').select('*').eq('user_id',userId);
+    if(error)throw error;return data||[];
+  },
+  async saveBenefitCheckin(user,{periodIndex,helped,amount,description,ellis}){
+    const {data,error}=await supabase.from('benefit_checkins').insert({
+      user_id:user.id,period_index:periodIndex,helped,
+      approximate_amount_cop:helped && amount!=='' ? Number(amount) : null,
+      action_description:helped ? (description.trim()||null):null,sean_ellis_response:ellis
+    }).select().single();
+    if(error)throw error;return data;
+  },
+  async getSessionCount(userId){
+    const {count,error}=await supabase.from('experiment_sessions').select('id',{count:'exact',head:true}).eq('user_id',userId);
+    if(error)throw error;return count||0;
   },
 };

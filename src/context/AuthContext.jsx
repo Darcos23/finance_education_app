@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { analytics, ensureExperimentSession, trackEvent } from "../lib/analytics";
 import { clearBrowserSession } from "../lib/device";
+import { getFirstTouch } from "../lib/attribution";
 
 const AuthContext = createContext(null);
 
@@ -68,12 +69,12 @@ export function AuthProvider({ children }) {
     });
     if (!error && data.user) {
       if (data.session) {
-        await trackEvent("registration_submitted", { user: data.user, once: true });
+        await trackEvent("registration_submitted", { user: data.user, once: true, properties:getFirstTouch() });
       } else {
         await trackEvent("registration_submitted_anonymous", {
           once: true,
           scope: "device",
-          properties: { email_confirmation_required: true },
+          properties: { email_confirmation_required: true, ...getFirstTouch() },
         });
       }
     }
