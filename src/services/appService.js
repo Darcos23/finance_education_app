@@ -283,6 +283,12 @@ export const appService = {
     }).select().single();
     if(error)throw error;return data;
   },
+  async getExperimentFlags(userId){
+    const {data,error}=await supabase.from('analytics_events').select('event_name').eq('user_id',userId)
+      .in('event_name',['premium_offer_viewed','premium_demo_completed','premium_selected','premium_declined',
+        'checkout_declined','checkout_confirmed','exit_survey_submitted','guide_completed']);
+    if(error)throw error;return [...new Set((data||[]).map(x=>x.event_name))];
+  },
   async getSessionCount(userId){
     const {count,error}=await supabase.from('experiment_sessions').select('id',{count:'exact',head:true}).eq('user_id',userId);
     if(error)throw error;return count||0;
