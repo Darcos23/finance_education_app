@@ -186,6 +186,18 @@ export const TRIAGE_QUESTIONS = [
       {id:"q9_e",label:"Otro"}
     ]
   },
+  {
+    id: "q10_profile_pain", profileOnly: true,
+    question: "En el último mes, ¿cuál de estas situaciones te pasó más?",
+    description: "Nos ayuda a entender qué te interesa resolver primero.",
+    options: [
+      {id:"q10_a", label:"Me quedé sin plata antes de lo esperado"},
+      {id:"q10_b", label:"No supe en qué se me fue el dinero"},
+      {id:"q10_c", label:"Intenté ahorrar y no lo logré"},
+      {id:"q10_d", label:"Pagué intereses o cuotas que no tenía claras"},
+      {id:"q10_e", label:"Ninguna de estas"}
+    ]
+  },
 
 ];
 
@@ -2141,10 +2153,10 @@ export const PREMIUM_CONFIG = {
     "Simuladores guiados limitados"
   ],
   premiumFeatures: [
-    "Práctica adaptativa según tus errores",
-    "Acceso ampliado a simuladores",
-    "Seguimiento de varias metas",
-    "Reporte mensual de progreso"
+    "Radiografía financiera completa y actualizable (ingresos, gastos y metas)",
+    "Rutas avanzadas y casos de práctica adicionales",
+    "Reporte mensual de tu progreso",
+    "Simuladores avanzados"
   ]
 };
 

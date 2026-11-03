@@ -270,3 +270,417 @@ select coalesce(properties->>'source','sin_fuente') as fuente,
   count(distinct user_id) as personas
 from public.analytics_events where event_name='premium_offer_viewed'
 group by 1 order by personas desc;
+
+-- ==========================================================================================
+-- EXPERIMENTO 3 y 4 de noviembre de 2026 · Consultas 22 a 31 (v7)
+-- ------------------------------------------------------------------------------------------
+-- ANTES DE USARLAS, EL EQUIPO DEBE REEMPLAZAR EN CADA CONSULTA:
+--   1) la fecha de inicio del experimento en `params` (hoy: 2026-11-03 07:00 hora de Colombia);
+--   2) los correos de las cuentas de prueba en `excluidos` ('PRUEBA1@...','PRUEBA2@...').
+-- Participante real = cuenta creada en auth.users desde `inicio` y que no está en `excluidos`.
+-- Filtro de fecha por tabla: auth.users.created_at (registro) y analytics_events.created_at (eventos).
+-- triage_results no tiene created_at (usa completed_at) y experiment_state tampoco: se filtran a través
+-- de la lista de participantes. Ningún monto escrito por el usuario se guarda; solo categorías y decisiones.
+-- Claves del diagnóstico en triage_results.answers: q8_profile_age, q9_profile_occupation, q10_profile_pain.
+-- Las cuentas con diagnóstico anterior a esta versión no tienen q10 (aparece como "sin dato").
+-- ==========================================================================================
+
+-- 22. Embudo completo por participante (PMV y evidencia de entrega de valor, 30 %; venta, 20 %).
+-- Una fila por persona con su código FP-XXXXXX (el mismo de la pantalla de cierre), perfil y cada etapa (1 = la alcanzó).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id, u.created_at as registrado_en
+  from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+ev as (
+  select e.* from public.analytics_events e join participantes p on p.user_id = e.user_id
+  where e.created_at >= (select inicio from params)
+),
+opciones(clave, etiqueta) as (values
+  ('q8_a','18–24'),('q8_b','25–34'),('q8_c','35–54'),('q8_d','55+'),
+  ('q9_a','Estudiante'),('q9_b','Empleado'),('q9_c','Independiente'),('q9_d','Estudia y trabaja'),('q9_e','Otro'),
+  ('q10_a','Se quedó sin plata'),('q10_b','No supo en qué se fue'),('q10_c','Intentó ahorrar y no pudo'),
+  ('q10_d','Intereses/cuotas poco claras'),('q10_e','Ninguna')),
+hitos as (
+  select user_id,
+    max((event_name = 'triage_completed')::int) as diagnostico,
+    max((event_name = 'lesson_completed')::int) as leccion,
+    max((event_name = 'goal_created')::int) as meta,
+    max((event_name = 'simulator_completed')::int) as simulador,
+    max((event_name = 'premium_offer_viewed')::int) as oferta_vista,
+    max((event_name = 'premium_demo_completed')::int) as muestra_completada,
+    max((event_name = 'premium_selected')::int) as selecciono_premium,
+    max((event_name = 'checkout_details_completed')::int) as datos_completados,
+    max((event_name = 'checkout_confirmed')::int) as confirmo,
+    max((event_name in ('premium_declined','checkout_declined'))::int) as rechazo,
+    string_agg(case when event_name = 'premium_declined' then 'oferta:' || coalesce(properties->>'stage','?')
+                    when event_name = 'checkout_declined' then 'checkout_paso_' || coalesce(properties->>'step','?') end, ', ') as etapa_rechazo,
+    max((event_name = 'exit_survey_submitted')::int) as encuesta
+  from ev group by user_id
+)
+select 'FP-' || upper(left(p.user_id::text, 6)) as codigo,
+  p.registrado_en,
+  coalesce(o8.etiqueta, 'sin dato') as edad,
+  coalesce(o9.etiqueta, 'sin dato') as ocupacion,
+  coalesce(o10.etiqueta, 'sin dato') as dolor,
+  1 as registro,
+  coalesce(h.diagnostico, (t.user_id is not null)::int) as diagnostico,
+  coalesce(h.leccion,0) as leccion, coalesce(h.meta,0) as meta, coalesce(h.simulador,0) as simulador,
+  coalesce(h.oferta_vista,0) as oferta_vista, coalesce(h.muestra_completada,0) as muestra_completada,
+  coalesce(h.selecciono_premium,0) as selecciono_premium, coalesce(h.datos_completados,0) as datos_completados,
+  coalesce(h.confirmo,0) as confirmo, coalesce(h.rechazo,0) as rechazo, h.etapa_rechazo,
+  coalesce(h.encuesta,0) as encuesta
+from participantes p
+left join hitos h on h.user_id = p.user_id
+left join public.triage_results t on t.user_id = p.user_id
+left join opciones o8 on o8.clave = t.answers->>'q8_profile_age'
+left join opciones o9 on o9.clave = t.answers->>'q9_profile_occupation'
+left join opciones o10 on o10.clave = t.answers->>'q10_profile_pain'
+order by p.registrado_en;
+
+-- 23. Resumen del embudo: personas distintas por etapa, % sobre registrados y % sobre la etapa anterior
+-- (PMV 30 %; evidencia de intento de pago 20 %).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+ev as (
+  select e.user_id, e.event_name from public.analytics_events e join participantes p on p.user_id = e.user_id
+  where e.created_at >= (select inicio from params)
+),
+etapas(orden, etapa, eventos, secuencial) as (values
+  (1,'Registro', array['__registro__'], true),
+  (2,'Diagnóstico', array['triage_completed'], true),
+  (3,'Lección completada', array['lesson_completed'], true),
+  (4,'Meta creada', array['goal_created'], false),
+  (5,'Simulador', array['simulator_completed'], false),
+  (6,'Oferta Premium vista', array['premium_offer_viewed'], true),
+  (7,'Muestra Premium completada', array['premium_demo_completed'], false),
+  (8,'Seleccionó Premium', array['premium_selected'], true),
+  (9,'Datos de pago completados', array['checkout_details_completed'], true),
+  (10,'Confirmó compra (simulada)', array['checkout_confirmed'], true),
+  (11,'Rechazó con motivo', array['premium_declined','checkout_declined'], false),
+  (12,'Encuesta final', array['exit_survey_submitted'], false)),
+conteos as (
+  select s.orden, s.etapa, s.secuencial,
+    case when s.orden = 1 then (select count(*) from participantes)
+         else (select count(distinct ev.user_id) from ev where ev.event_name = any(s.eventos)) end as personas
+  from etapas s
+),
+cadena as (
+  select orden, round(100.0 * personas / nullif(lag(personas) over (order by orden), 0), 1) as pct_sobre_etapa_anterior
+  from conteos where secuencial
+)
+select c.orden, c.etapa, c.personas,
+  round(100.0 * c.personas / nullif((select count(*) from participantes), 0), 1) as pct_sobre_registrados,
+  k.pct_sobre_etapa_anterior
+from conteos c left join cadena k on k.orden = c.orden order by c.orden;
+-- % sobre la etapa anterior solo en la cadena principal (registro → diagnóstico → lección → oferta → selección →
+-- datos → confirmación). Meta, simulador, muestra, rechazo y encuesta son pasos laterales: solo % sobre registrados.
+
+-- 24. Motivos de rechazo combinados (Modelo económico 25 %; venta 20 %): oferta (offer / after_demo)
+-- y checkout (paso 1, 2 o 3), en personas distintas. Una persona puede aparecer en más de un origen.
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+rechazos as (
+  select e.user_id,
+    case when e.event_name = 'premium_declined' then 'oferta' else 'checkout' end as origen,
+    case when e.event_name = 'premium_declined' then coalesce(e.properties->>'stage','?')
+         else 'paso_' || coalesce(e.properties->>'step','?') end as etapa,
+    coalesce(nullif(e.properties->>'reason',''), 'sin_motivo') as motivo
+  from public.analytics_events e
+  where e.event_name in ('premium_declined','checkout_declined')
+    and e.created_at >= (select inicio from params)
+    and e.user_id not in (select id from excluidos)
+    and e.user_id in (select id from auth.users where created_at >= (select inicio from params))
+)
+select origen, etapa, motivo, count(distinct user_id) as personas_distintas,
+  round(100.0 * count(distinct user_id) / nullif((select count(distinct user_id) from rechazos), 0), 1) as pct_de_personas_que_rechazaron
+from rechazos group by grouping sets ((origen, etapa, motivo), (motivo))
+order by origen nulls last, etapa nulls last, personas_distintas desc;
+-- Las filas con origen/etapa vacíos son el total por motivo (personas distintas en cualquier punto de rechazo).
+-- Motivos: price_high, not_now, trust, more_free, not_valuable, other.
+
+-- 25. Efecto de la muestra Premium (PMV 30 %; venta 20 %): entre quienes VIERON la oferta,
+-- tasa de selección y de confirmación según si completaron o no la radiografía gratuita.
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+por_persona as (
+  select e.user_id,
+    max((e.event_name = 'premium_offer_viewed')::int) as vio_oferta,
+    max((e.event_name = 'premium_demo_completed')::int) as muestra,
+    max((e.event_name = 'premium_selected')::int) as selecciono,
+    max((e.event_name = 'checkout_confirmed')::int) as confirmo,
+    max((e.event_name in ('premium_declined','checkout_declined'))::int) as rechazo
+  from public.analytics_events e join participantes p on p.user_id = e.user_id
+  where e.created_at >= (select inicio from params)
+  group by e.user_id
+)
+select case when muestra = 1 then 'Completó la muestra' else 'No completó la muestra' end as grupo,
+  count(*) as personas_que_vieron_oferta,
+  sum(selecciono) as seleccionaron_premium,
+  round(100.0 * sum(selecciono) / nullif(count(*), 0), 1) as pct_seleccion,
+  sum(confirmo) as confirmaron,
+  round(100.0 * sum(confirmo) / nullif(count(*), 0), 1) as pct_confirmacion,
+  sum(rechazo) as rechazaron_con_motivo
+from por_persona where vio_oferta = 1
+group by 1 order by 1;
+-- Con muestras pequeñas, reportar conteos absolutos junto al porcentaje; no es un experimento aleatorizado.
+
+-- 26a. Encuesta final · Sean Ellis (PMV 30 %): distribución y % "muy decepcionado" (umbral de referencia: 40 %).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+encuesta as (
+  select distinct on (e.user_id) e.user_id, e.properties as p
+  from public.analytics_events e join auth.users u on u.id = e.user_id
+  where e.event_name = 'exit_survey_submitted'
+    and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+    and e.user_id not in (select id from excluidos)
+  order by e.user_id, e.created_at
+)
+select coalesce(p->>'sean_ellis','sin_respuesta') as sean_ellis, count(*) as personas,
+  round(100.0 * count(*) / nullif(sum(count(*)) over (), 0), 1) as pct
+from encuesta group by 1
+order by min(case p->>'sean_ellis' when 'very' then 1 when 'somewhat' then 2 when 'not' then 3 else 4 end);
+
+-- 26b. Encuesta final · % que descubrió algo nuevo de sus finanzas (PMV 30 %: evidencia de valor entregado).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+encuesta as (
+  select distinct on (e.user_id) e.user_id, e.properties as p
+  from public.analytics_events e join auth.users u on u.id = e.user_id
+  where e.event_name = 'exit_survey_submitted'
+    and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+    and e.user_id not in (select id from excluidos)
+  order by e.user_id, e.created_at
+)
+select count(*) as encuestas,
+  count(*) filter (where (p->>'discovered')::boolean) as descubrieron_algo,
+  round(100.0 * count(*) filter (where (p->>'discovered')::boolean) / nullif(count(*), 0), 1) as pct_descubrieron,
+  count(*) filter (where p->>'sean_ellis' = 'very') as muy_decepcionados,
+  round(100.0 * count(*) filter (where p->>'sean_ellis' = 'very') / nullif(count(*), 0), 1) as pct_muy_decepcionados
+from encuesta;
+
+-- 26c. Encuesta final · textos para análisis cualitativo (PMV 30 %; mejoras a partir del uso).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...'))
+select 'FP-' || upper(left(e.user_id::text, 6)) as codigo,
+  e.properties->>'decision' as decision,
+  e.properties->>'sean_ellis' as sean_ellis,
+  nullif(e.properties->>'discovered_text','') as que_descubrio,
+  nullif(e.properties->>'will_do','') as que_hara_distinto
+from public.analytics_events e join auth.users u on u.id = e.user_id
+where e.event_name = 'exit_survey_submitted'
+  and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+  and e.user_id not in (select id from excluidos)
+  and (nullif(e.properties->>'discovered_text','') is not null or nullif(e.properties->>'will_do','') is not null)
+order by e.created_at;
+
+-- 27a. Rango de precio por participante (Modelo económico 25 %): las 4 respuestas de sensibilidad al precio (COP/mes).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...'))
+select 'FP-' || upper(left(e.user_id::text, 6)) as codigo,
+  (e.properties->>'price_too_cheap')::numeric as demasiado_barato,
+  (e.properties->>'price_cheap')::numeric as barato,
+  (e.properties->>'price_expensive')::numeric as caro,
+  (e.properties->>'price_too_expensive')::numeric as demasiado_caro,
+  ((e.properties->>'price_too_cheap')::numeric <= (e.properties->>'price_cheap')::numeric
+    and (e.properties->>'price_cheap')::numeric <= (e.properties->>'price_expensive')::numeric
+    and (e.properties->>'price_expensive')::numeric <= (e.properties->>'price_too_expensive')::numeric) as orden_coherente,
+  e.properties->>'decision' as decision
+from public.analytics_events e join auth.users u on u.id = e.user_id
+where e.event_name = 'exit_survey_submitted'
+  and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+  and e.user_id not in (select id from excluidos)
+order by e.created_at;
+
+-- 27b. Rango de precio agregado (Modelo económico 25 %): mediana de cada pregunta y % de personas
+-- para quienes $9.000 queda entre "barato" y "caro" (ambos inclusive).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+precios as (
+  select distinct on (e.user_id)
+    (e.properties->>'price_too_cheap')::numeric as a, (e.properties->>'price_cheap')::numeric as b,
+    (e.properties->>'price_expensive')::numeric as c, (e.properties->>'price_too_expensive')::numeric as d
+  from public.analytics_events e join auth.users u on u.id = e.user_id
+  where e.event_name = 'exit_survey_submitted'
+    and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+    and e.user_id not in (select id from excluidos)
+  order by e.user_id, e.created_at
+)
+select count(*) as respuestas,
+  percentile_cont(0.5) within group (order by a) as mediana_demasiado_barato,
+  percentile_cont(0.5) within group (order by b) as mediana_barato,
+  percentile_cont(0.5) within group (order by c) as mediana_caro,
+  percentile_cont(0.5) within group (order by d) as mediana_demasiado_caro,
+  count(*) filter (where 9000 between b and c) as personas_9000_entre_barato_y_caro,
+  round(100.0 * count(*) filter (where 9000 between b and c) / nullif(count(*), 0), 1) as pct_9000_entre_barato_y_caro
+from precios;
+
+-- 28. Modalidad presencial vs. virtual (Go to Market 15 %): embudo por el `ref` del enlace de reclutamiento.
+-- Fuente: properties->>'ref' de registration_submitted; si falta, el de triage_completed (también guarda el first-touch)
+-- y, por último, el de unique_device_visit del mismo dispositivo.
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+registro as (
+  select distinct on (e.user_id) e.user_id, e.device_id, nullif(e.properties->>'ref','') as ref
+  from public.analytics_events e join participantes p on p.user_id = e.user_id
+  where e.event_name = 'registration_submitted'
+  order by e.user_id, e.created_at
+),
+diagnostico as (
+  select distinct on (e.user_id) e.user_id, e.device_id, nullif(e.properties->>'ref','') as ref
+  from public.analytics_events e join participantes p on p.user_id = e.user_id
+  where e.event_name = 'triage_completed'
+  order by e.user_id, e.created_at
+),
+visita as (
+  select distinct on (device_id) device_id, nullif(properties->>'ref','') as ref
+  from public.analytics_events where event_name = 'unique_device_visit'
+  order by device_id, created_at
+),
+modalidad as (
+  select p.user_id, coalesce(r.ref, d.ref, v.ref, 'sin ref') as modalidad
+  from participantes p
+  left join registro r on r.user_id = p.user_id
+  left join diagnostico d on d.user_id = p.user_id
+  left join visita v on v.device_id = coalesce(r.device_id, d.device_id)
+),
+por_persona as (
+  select m.modalidad, m.user_id,
+    max((e.event_name = 'triage_completed')::int) as diagnostico,
+    max((e.event_name = 'lesson_completed')::int) as leccion,
+    max((e.event_name = 'premium_offer_viewed')::int) as oferta,
+    max((e.event_name = 'premium_demo_completed')::int) as muestra,
+    max((e.event_name = 'premium_selected')::int) as selecciono,
+    max((e.event_name = 'checkout_confirmed')::int) as confirmo,
+    max((e.event_name in ('premium_declined','checkout_declined'))::int) as rechazo,
+    max((e.event_name = 'exit_survey_submitted')::int) as encuesta
+  from modalidad m left join public.analytics_events e
+    on e.user_id = m.user_id and e.created_at >= (select inicio from params)
+  group by m.modalidad, m.user_id
+)
+select modalidad, count(*) as registrados,
+  sum(diagnostico) as diagnostico, sum(leccion) as leccion, sum(oferta) as oferta_vista, sum(muestra) as muestra,
+  sum(selecciono) as selecciono_premium, sum(confirmo) as confirmo,
+  round(100.0 * sum(confirmo) / nullif(count(*), 0), 1) as pct_confirmo_sobre_registrados,
+  sum(rechazo) as rechazo_con_motivo, sum(encuesta) as encuesta,
+  round(100.0 * sum(encuesta) / nullif(count(*), 0), 1) as pct_completaron_recorrido
+from por_persona group by modalidad order by registrados desc;
+
+-- 29a. Modo guía (PMV 30 %: mejora aplicada a partir del uso): quién la siguió, quién la desactivó y
+-- la tasa de finalización del recorrido (encuesta enviada) en cada grupo.
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+por_persona as (
+  select p.user_id,
+    bool_or(e.event_name = 'guide_started') as empezo,
+    bool_or(e.event_name = 'guide_disabled' and e.properties->>'at' = 'welcome') as desactivo_bienvenida,
+    bool_or(e.event_name = 'guide_disabled' and e.properties->>'at' <> 'welcome') as desactivo_despues,
+    bool_or(e.event_name = 'guide_reenabled') as reactivo,
+    bool_or(e.event_name = 'guide_completed') as completo_guia,
+    bool_or(e.event_name = 'exit_survey_submitted') as encuesta
+  from participantes p left join public.analytics_events e
+    on e.user_id = p.user_id and e.created_at >= (select inicio from params)
+  group by p.user_id
+)
+select case
+    when completo_guia then '1. Siguió la guía hasta el final'
+    when desactivo_bienvenida and not coalesce(reactivo,false) then '3. Exploró por su cuenta desde la bienvenida'
+    when desactivo_despues then '4. Desactivó la guía a mitad del recorrido'
+    when empezo or reactivo then '2. Siguió la guía (aún sin terminar)'
+    else '5. Sin interacción con la guía' end as grupo,
+  count(*) as personas,
+  count(*) filter (where encuesta) as completaron_recorrido,
+  round(100.0 * count(*) filter (where encuesta) / nullif(count(*), 0), 1) as pct_finalizacion
+from por_persona group by 1 order by 1;
+-- guide_completed solo se registra si la guía estaba activa al enviar la encuesta: distingue
+-- "siguió la guía" de "llegó por su cuenta" (estos últimos suman en completaron_recorrido de otros grupos).
+
+-- 29b. Modo guía: en qué lugar y en qué paso se desactivó (personas distintas).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...'))
+select e.properties->>'at' as donde, coalesce(e.properties->>'step', '—') as paso,
+  count(distinct e.user_id) as personas_distintas
+from public.analytics_events e join auth.users u on u.id = e.user_id
+where e.event_name = 'guide_disabled'
+  and e.created_at >= (select inicio from params) and u.created_at >= (select inicio from params)
+  and e.user_id not in (select id from excluidos)
+group by 1, 2 order by personas_distintas desc;
+
+-- 30. Perfil objetivo frente a decisión final (Evidencia de venta 20 %: solo cuenta si el comprador es del perfil).
+-- Ajusta `perfil_objetivo` si el equipo define otro segmento (hoy: 18–34 años).
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+opciones(clave, etiqueta) as (values
+  ('q8_a','18–24'),('q8_b','25–34'),('q8_c','35–54'),('q8_d','55+'),
+  ('q9_a','Estudiante'),('q9_b','Empleado'),('q9_c','Independiente'),('q9_d','Estudia y trabaja'),('q9_e','Otro'),
+  ('q10_a','Se quedó sin plata'),('q10_b','No supo en qué se fue'),('q10_c','Intentó ahorrar y no pudo'),
+  ('q10_d','Intereses/cuotas poco claras'),('q10_e','Ninguna')),
+decision as (
+  select p.user_id,
+    case when bool_or(e.event_name = 'checkout_confirmed') then '1. Confirmó compra (simulada)'
+         when bool_or(e.event_name = 'premium_declined') then '3. Rechazó en la oferta'
+         when bool_or(e.event_name = 'checkout_declined') then '4. Rechazó en el checkout'
+         when bool_or(e.event_name = 'premium_selected') then '2. Seleccionó, sin cerrar'
+         else '5. Sin decisión' end as decision_final
+  from participantes p left join public.analytics_events e
+    on e.user_id = p.user_id and e.created_at >= (select inicio from params)
+  group by p.user_id
+)
+select coalesce(o8.etiqueta,'sin dato') as edad, coalesce(o9.etiqueta,'sin dato') as ocupacion,
+  coalesce(o10.etiqueta,'sin dato') as dolor,
+  (t.answers->>'q8_profile_age' in ('q8_a','q8_b')) as perfil_objetivo,
+  d.decision_final, count(*) as personas
+from decision d
+left join public.triage_results t on t.user_id = d.user_id
+left join opciones o8 on o8.clave = t.answers->>'q8_profile_age'
+left join opciones o9 on o9.clave = t.answers->>'q9_profile_occupation'
+left join opciones o10 on o10.clave = t.answers->>'q10_profile_pain'
+group by 1, 2, 3, 4, 5 order by d.decision_final, personas desc;
+
+-- 31. Práctica adaptativa por participante real (PMV 30 %): error → refuerzo → resolución.
+-- Reemplaza la evaluación pre/post como evidencia de aprendizaje aplicado.
+with params as (select timestamptz '2026-11-03 07:00:00-05' as inicio),
+excluidos as (select id from auth.users where email in ('PRUEBA1@...','PRUEBA2@...')),
+participantes as (
+  select u.id as user_id from auth.users u
+  where u.created_at >= (select inicio from params) and u.id not in (select id from excluidos)
+),
+por_persona as (
+  select p.user_id,
+    count(distinct e.object_id) filter (where e.event_name = 'lesson_completed') as lecciones_completadas,
+    count(distinct e.object_id) filter (where e.event_name = 'adaptive_practice_shown') as refuerzos_recibidos,
+    count(distinct e.object_id) filter (where e.event_name = 'adaptive_practice_completed') as refuerzos_resueltos,
+    count(distinct e.object_id) filter (where e.event_name = 'adaptive_practice_completed'
+      and (e.properties->>'correct')::boolean) as refuerzos_correctos,
+    string_agg(distinct e.properties->>'skill_tag', ', ') filter (where e.event_name = 'adaptive_practice_shown') as habilidades_reforzadas
+  from participantes p left join public.analytics_events e
+    on e.user_id = p.user_id and e.created_at >= (select inicio from params)
+  group by p.user_id
+)
+select 'FP-' || upper(left(user_id::text, 6)) as codigo, lecciones_completadas, refuerzos_recibidos,
+  refuerzos_resueltos, refuerzos_correctos, habilidades_reforzadas
+from por_persona order by refuerzos_recibidos desc, codigo;
+-- Agregado sugerido: personas con refuerzo recibido, % que lo resolvió y % que lo resolvió correctamente
+-- (sumar las columnas de esta consulta; cada refuerzo se cuenta una vez por lección y persona).
