@@ -7,7 +7,7 @@ export default function LandingPage() {
     <div className="landing-page">
       <Brand />
       <div className="landing-hero">
-        <img className="landing-logo" src="/finpath-logo.png" alt="" />
+        <img className="landing-logo" src={`${import.meta.env.BASE_URL}finpath-logo.png`} alt="" />
         <h1 className="landing-title">Aprende a manejar tu dinero <span>desde tu realidad.</span></h1>
         <p className="landing-copy">
           FinPath parte de un diagnóstico, te recomienda qué aprender y conecta ese aprendizaje con práctica,
