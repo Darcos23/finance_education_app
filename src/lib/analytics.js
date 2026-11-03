@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { getBrowserSessionId, getDeviceId } from "./device";
+import { getFirstTouch } from "./attribution";
 
 export const EXPERIMENT_ID = import.meta.env.VITE_EXPERIMENT_ID || "afei-2026-2-b2c-v1";
 
@@ -81,7 +82,7 @@ export async function trackEvent(eventName, {
 export const analytics = {
   uniqueVisit: (user = null) => user
     ? trackEvent("unique_participant", { user, once: true, scope: "actor" })
-    : trackEvent("unique_device_visit", { user:null, once:true, scope:"device" }),
+    : trackEvent("unique_device_visit", { user:null, once:true, scope:"device", properties:getFirstTouch() }),
   sessionStarted: (user = null) => trackEvent("session_started", {
     user,
     objectId: getBrowserSessionId(),
