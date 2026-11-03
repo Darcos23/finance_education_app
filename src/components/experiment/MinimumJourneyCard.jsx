@@ -1,7 +1,7 @@
 import { CheckCircle2, Circle, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 
-export default function MinimumJourneyCard({ state }) {
+export default function MinimumJourneyCard({ state, source = "home_card" }) {
   const checks = [
     ["Diagnóstico completado", Boolean(state?.triage_completed_at)],
     ["Ruta recomendada explorada", Boolean(state?.route_viewed_at)],
@@ -10,7 +10,7 @@ export default function MinimumJourneyCard({ state }) {
   const unlocked = Boolean(state?.minimum_journey_completed_at);
 
   return (
-    <div className="card card-pad">
+    <div className="card card-pad" id="premium-card">
       <span className="eyebrow"><Crown size={15}/> Experiencia Premium</span>
       <h2 style={{margin:"12px 0 8px"}}>{unlocked ? "Ya puedes conocer Premium" : "Primero prueba lo esencial"}</h2>
       {/* <p className="page-subtitle" style={{marginBottom:14}}>
@@ -25,7 +25,7 @@ export default function MinimumJourneyCard({ state }) {
           </div>
         ))}
       </div>
-      {unlocked && <Link className="btn btn-yellow btn-block" style={{marginTop:16}} to="/premium">Conocer Premium</Link>}
+      {unlocked && <Link className="btn btn-yellow btn-block" style={{marginTop:16}} to="/premium" state={{source}}>Conocer Premium</Link>}
     </div>
   );
 }
