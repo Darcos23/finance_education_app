@@ -153,3 +153,45 @@ img { display: block; max-width: 100%; }
   .bottom-nav { bottom:20px; border-radius:0 0 34px 34px; }
   .auth-page, .landing-page { margin:20px auto; min-height:calc(100vh - 40px); border-radius:34px; box-shadow:0 24px 80px rgba(0,62,162,.10); }
 }
+
+/* ===== v7 · Modo guía, muestra Premium (agregado al final; no modifica reglas anteriores) ===== */
+.guide-pulse { outline: 3px solid var(--yellow); outline-offset: 4px; animation: guidePulse 1.6s ease-in-out infinite; }
+@keyframes guidePulse { 0%,100% { outline-color: rgba(253,191,4,1); } 50% { outline-color: rgba(253,191,4,.35); } }
+@media (prefers-reduced-motion: reduce) { .guide-pulse { animation: none; } }
+
+.app-content.with-guide { padding-bottom: 190px; padding-bottom: max(190px, var(--guide-space, 190px)); }
+
+.guide-bar { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(76px + env(safe-area-inset-bottom)); width:calc(100% - 20px); max-width:500px; z-index:40;
+  background:linear-gradient(145deg,var(--navy) 0%,#00307f 100%); color:#fff; border-radius:20px; padding:14px 14px 12px; box-shadow:0 14px 34px rgba(0,62,162,.32); }
+.guide-bar.compact { padding:0; }
+.guide-bar-line { width:100%; display:flex; align-items:center; gap:8px; background:none; border:0; color:#fff; padding:12px 14px; text-align:left; font-size:.84rem; border-radius:20px; }
+.guide-bar-line:disabled { cursor:default; opacity:1; }
+.guide-bar-line span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guide-bar-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.guide-bar-step { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--yellow); }
+.guide-bar-icon { width:32px; height:32px; border:0; border-radius:10px; background:rgba(255,255,255,.12); color:#fff; display:grid; place-items:center; }
+.guide-bar-title { display:block; font-size:1rem; margin:6px 0 2px; }
+.guide-bar-text { margin:0 0 10px; color:#dbeaff; font-size:.84rem; line-height:1.4; }
+.guide-bar-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.guide-bar-actions .btn { min-height:42px; padding:10px 14px; }
+.guide-bar-off { background:none; border:0; color:#b9d8ff; font-size:.78rem; font-weight:700; text-decoration:underline; padding:6px 2px; }
+
+.guide-sheet-backdrop { position:fixed; inset:0; z-index:60; background:rgba(6,26,58,.45); display:flex; align-items:flex-end; justify-content:center; }
+.guide-sheet { width:100%; max-width:520px; background:var(--surface); border-radius:28px 28px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); box-shadow:0 -18px 50px rgba(0,62,162,.25); }
+
+.radiography-summary { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.radiography-summary svg { flex:0 0 auto; margin:0 auto; }
+.radiography-legend { flex:1 1 180px; display:grid; gap:8px; }
+.radiography-legend-row { display:flex; align-items:center; gap:8px; font-size:.84rem; }
+.radiography-dot { width:12px; height:12px; border-radius:4px; flex:0 0 auto; }
+.radiography-bar-row { margin-bottom:12px; }
+.radiography-bar-label { display:flex; justify-content:space-between; gap:10px; font-size:.84rem; margin-bottom:5px; }
+.radiography-ref-track { position:relative; height:12px; background:#e8eef7; border-radius:999px; overflow:visible; }
+.radiography-ref-fill { height:100%; border-radius:999px; }
+.radiography-ref-mark { position:absolute; top:-4px; width:2px; height:20px; background:var(--ink); border-radius:2px; transform:translateX(-1px); }
+
+@media (min-width: 700px) {
+  .guide-bar { bottom:calc(96px + env(safe-area-inset-bottom)); }
+  .guide-sheet-backdrop { padding-bottom:20px; }
+  .guide-sheet { border-radius:28px; }
+}

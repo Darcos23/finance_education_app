@@ -5,7 +5,6 @@ import MinimumJourneyCard from "../components/experiment/MinimumJourneyCard";
 import ProgressBar from "../components/common/ProgressBar";
 import { LEARNING_PATHS } from "../data";
 import { useEffect } from "react";
-import SkillCheckCard from "../components/experiment/SkillCheckCard";
 import BenefitCheckinCard from "../components/experiment/BenefitCheckinCard";
 import { bogotaDay } from "../lib/streak";
 import { useAuth } from "../context/AuthContext";
@@ -14,7 +13,7 @@ import { useApp } from "../context/AppContext";
 export default function HomePage() {
   const { user, profile } = useAuth();
   const { triage, completedLessons, goals, experimentState, loadingData, hydrated, dataError,
-    lessons,streak,skillChecks,benefitCheckins,sessionCount } = useApp();
+    lessons,streak,benefitCheckins,exitSurveyDone } = useApp();
   const location=useLocation();
   useEffect(()=>{
     if(location.state?.scrollToPremium){
@@ -46,9 +45,8 @@ export default function HomePage() {
   const today=bogotaDay();
   const daysSince=Math.max(0,Math.floor((Date.parse(`${today}T12:00:00Z`)-Date.parse(`${start?bogotaDay(start):today}T12:00:00Z`))/86400000));
   const checkinPeriod=Math.floor(daysSince/7);
-  const showCheckin=(daysSince>=3||sessionCount>=2)&&!benefitCheckins.some(c=>c.period_index===checkinPeriod);
-  const showPre=Boolean(triage)&&!skillChecks.some(c=>c.kind==='pre');
-  const showPost=completedLessons.length>=2&&!showPre&&!skillChecks.some(c=>c.kind==='post');
+  // Check-in de beneficio SOLO para el regreso D+1: después de la encuesta final y en un día distinto al del registro.
+  const showCheckin=exitSurveyDone&&daysSince>=1&&!benefitCheckins.some(c=>c.period_index===checkinPeriod);
 
   return (
     <AppShell>
@@ -56,7 +54,7 @@ export default function HomePage() {
         <span className="hero-chip">Tu siguiente paso</span>
         <h1 style={{margin:"12px 0 6px",fontSize:"1.9rem"}}>Hola, {firstName}.</h1>
         <p style={{margin:"0 0 18px"}}>{nextRecommendedLesson ? `Continúa con “${nextRecommendedLesson.title}”.` : "Explora una ruta y conviértela en una acción concreta."}</p>
-        <Link className="btn btn-yellow" to={nextRecommendedLesson ? `/lesson/${nextRecommendedLesson.id}` : "/learn"}>
+        <Link className="btn btn-yellow" data-guide="start-lesson" to={nextRecommendedLesson ? `/lesson/${nextRecommendedLesson.id}` : "/learn"}>
           {nextRecommendedLesson ? "Continuar aprendiendo" : "Explorar rutas"} <ArrowRight size={18}/>
         </Link>
       </section>
@@ -88,8 +86,6 @@ export default function HomePage() {
         <div><strong>Prueba decisiones antes de la vida real</strong><div className="form-note">Ahorro, gastos, deuda y presupuesto con simuladores guiados.</div></div>
       </Link>
 
-      {showPre&&<SkillCheckCard kind="pre"/>}
-      {showPost&&<SkillCheckCard kind="post"/>}
       {showCheckin&&<BenefitCheckinCard periodIndex={checkinPeriod}/>}
       <div style={{marginTop:18}}><MinimumJourneyCard state={experimentState} source={location.state?.scrollToPremium?"notification":"home_card"}/></div>
     </AppShell>

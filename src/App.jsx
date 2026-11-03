@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import RequireTriage from "./components/layout/RequireTriage";
 import { useAuth } from "./context/AuthContext";
 import { analytics, touchSession } from "./lib/analytics";
 import LandingPage from "./pages/LandingPage";
@@ -21,6 +22,9 @@ import CheckoutPage from "./pages/CheckoutPage";
 import ProfilePage from "./pages/ProfilePage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import GoalIdeasPage from "./pages/GoalIdeasPage";
+import PremiumDemoPage from "./pages/PremiumDemoPage";
+import ExitSurveyPage from "./pages/ExitSurveyPage";
 
 function RouteTracker() {
   const location = useLocation();
@@ -35,6 +39,7 @@ function RouteTracker() {
 }
 
 const protectedPage = (node) => <ProtectedRoute>{node}</ProtectedRoute>;
+const appPage = (node) => <ProtectedRoute><RequireTriage>{node}</RequireTriage></ProtectedRoute>;
 
 export default function App() {
   return (
@@ -47,18 +52,21 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />}/>
         <Route path="/reset-password" element={<ResetPasswordPage />}/>
         <Route path="/triage" element={protectedPage(<TriagePage />)} />
-        <Route path="/app" element={protectedPage(<HomePage />)} />
-        <Route path="/learn" element={protectedPage(<LearnPage />)} />
-        <Route path="/path/:pathId" element={protectedPage(<PathPage />)} />
-        <Route path="/lesson/:lessonId" element={protectedPage(<LessonPage />)} />
-        <Route path="/goals" element={protectedPage(<GoalsPage />)} />
-        <Route path="/goals/new" element={protectedPage(<GoalFormPage />)} />
-        <Route path="/goals/:goalId" element={protectedPage(<GoalDetailPage />)} />
-        <Route path="/simulators" element={protectedPage(<SimulatorsPage />)} />
-        <Route path="/simulators/:simulatorId" element={protectedPage(<SimulatorPage />)} />
-        <Route path="/premium" element={protectedPage(<PremiumPage />)} />
-        <Route path="/checkout/:attemptId" element={protectedPage(<CheckoutPage />)} />
-        <Route path="/profile" element={protectedPage(<ProfilePage />)} />
+        <Route path="/app" element={appPage(<HomePage />)} />
+        <Route path="/learn" element={appPage(<LearnPage />)} />
+        <Route path="/path/:pathId" element={appPage(<PathPage />)} />
+        <Route path="/lesson/:lessonId" element={appPage(<LessonPage />)} />
+        <Route path="/goals" element={appPage(<GoalsPage />)} />
+        <Route path="/goals/new" element={appPage(<GoalFormPage />)} />
+        <Route path="/goals/ideas" element={appPage(<GoalIdeasPage />)} />
+        <Route path="/goals/:goalId" element={appPage(<GoalDetailPage />)} />
+        <Route path="/simulators" element={appPage(<SimulatorsPage />)} />
+        <Route path="/simulators/:simulatorId" element={appPage(<SimulatorPage />)} />
+        <Route path="/premium" element={appPage(<PremiumPage />)} />
+        <Route path="/premium/demo" element={appPage(<PremiumDemoPage />)} />
+        <Route path="/checkout/:attemptId" element={appPage(<CheckoutPage />)} />
+        <Route path="/profile" element={appPage(<ProfilePage />)} />
+        <Route path="/fin" element={appPage(<ExitSurveyPage />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

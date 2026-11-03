@@ -1,13 +1,24 @@
-import { BookOpen, LogOut, ShieldCheck, Target, TrendingUp, UserRound } from "lucide-react";
+import { useState } from "react";
+import { BookOpen, ClipboardList, Compass, LogOut, ShieldCheck, Target, TrendingUp, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
+import { useGuide } from "../context/GuideContext";
 import { LEARNING_PATHS } from "../data";
 import { expenseInPeriod } from "../lib/goalPeriods";
 
 export default function ProfilePage(){
   const { user,profile,signOut }=useAuth();
-  const { triage,completedLessons,goals,experimentState,streak,goalEntries }=useApp();
+  const { triage,completedLessons,goals,experimentState,streak,goalEntries,exitSurveyDone }=useApp();
+  const guide=useGuide();
+  const [guideBusy,setGuideBusy]=useState(false);
+  const toggleGuide=async()=>{
+    if(guideBusy||!guide)return;
+    setGuideBusy(true);
+    try{ if(guide.enabled) await guide.disableGuide('profile',guide.current?.id||null); else await guide.enableGuide(); }
+    finally{setGuideBusy(false);}
+  };
   const name=profile?.full_name||user?.user_metadata?.full_name||"Usuario FinPath";
   const completedIds = new Set(completedLessons.map((item) => item.lesson_id));
   const xp = LEARNING_PATHS.flatMap((path) => path.lessons)
@@ -64,6 +75,24 @@ export default function ProfilePage(){
         <div className={`check-row ${experimentState?.central_feature_used_at?"done":""}`}>Funcionalidad central utilizada</div>
       </div>
     </div>
+
+    <div className="card card-pad">
+      <div style={{display:"flex",gap:10,alignItems:"center"}}><Compass color="#0068fb"/><h2 style={{margin:0,fontSize:"1.1rem"}}>Guía de primer uso</h2></div>
+      {exitSurveyDone ? <p className="page-subtitle" style={{margin:"10px 0 0"}}>Completaste el recorrido guiado. La guía ya no se muestra.</p> : <>
+        <p className="page-subtitle" style={{margin:"10px 0 12px"}}>{guide?.enabled
+          ? `Activada${guide?.current?` · Paso ${guide.current.number} de ${guide.total}: ${guide.current.title}`:''}.`
+          : "Desactivada. Puedes activarla para que te indique el siguiente paso."}</p>
+        <button className={`btn ${guide?.enabled?'btn-secondary':'btn-primary'} btn-block`} disabled={guideBusy} onClick={toggleGuide}>
+          {guide?.enabled?'Desactivar guía':'Activar guía'}
+        </button>
+      </>}
+    </div>
+
+    {!exitSurveyDone&&<div className="card card-pad">
+      <div style={{display:"flex",gap:10,alignItems:"center"}}><ClipboardList color="#0068fb"/><h2 style={{margin:0,fontSize:"1.1rem"}}>Terminar la prueba</h2></div>
+      <p className="page-subtitle" style={{margin:"10px 0 12px"}}>Cuando quieras, responde la encuesta final (2 minutos) y obtén tu código de participante.</p>
+      <Link className="btn btn-secondary btn-block" to="/fin">Ir a la encuesta final</Link>
+    </div>}
 
     <button className="btn btn-danger btn-block" style={{marginTop:16}} onClick={signOut}><LogOut size={18}/> Cerrar sesión</button>
   </AppShell>

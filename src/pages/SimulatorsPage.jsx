@@ -11,7 +11,7 @@ export default function SimulatorsPage(){
     <h1 className="page-title">Simuladores</h1>
     <p className="page-subtitle">Explora escenarios y observa su impacto. Estos cálculos son educativos y no constituyen asesoría financiera.</p>
     <div className="list">
-      {SIMULATORS.map(sim=>{const Icon=icons[sim.id]||Calculator;return <Link key={sim.id} className="list-card" to={`/simulators/${sim.id}`}><div className="list-icon"><Icon/></div><div><h3>{sim.title}</h3><p>{sim.description}</p></div></Link>})}
+      {SIMULATORS.map(sim=>{const Icon=icons[sim.id]||Calculator;return <Link key={sim.id} className="list-card" data-guide={`sim-${sim.id}`} to={`/simulators/${sim.id}`}><div className="list-icon"><Icon/></div><div><h3>{sim.title}</h3><p>{sim.description}</p></div></Link>})}
     </div>
   </AppShell>
 }

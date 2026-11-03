@@ -23,6 +23,8 @@ export default function SimulatorPage(){
       const weekly=Number(values.amount||0)*Number(values.times||0);
       const monthly=weekly*4.33, yearly=weekly*52;
       code=monthly>200000?"high":monthly>80000?"medium":"low";
+      // Solo en este dispositivo (pre-llenado de la radiografía Premium). Nunca se envía a Supabase.
+      try{localStorage.setItem(`finpath_last_micro_${user.id}`,JSON.stringify({monthly:Math.round(monthly),at:new Date().toISOString()}));}catch{/* Solo UI */}
       output={headline:`${money(monthly)} al mes`,detail:`Aproximadamente ${money(yearly)} al año si el patrón se mantiene.`};
     }
     if(simulatorId==="savings_goal"){

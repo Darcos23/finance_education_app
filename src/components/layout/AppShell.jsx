@@ -6,6 +6,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useApp } from "../../context/AppContext";
 import { deriveNotifications } from "../../lib/notifications";
 import { analytics } from "../../lib/analytics";
+import { useGuide } from "../../context/GuideContext";
+import GuideWelcome from "../guide/GuideWelcome";
+import GuideBar from "../guide/GuideBar";
 
 const nav = [
   ["/app", "Inicio", Home],
@@ -15,12 +18,15 @@ const nav = [
   ["/profile", "Perfil", UserRound],
 ];
 
-export default function AppShell({ children }) {
+export default function AppShell({ children, hideNav = false }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const {user}=useAuth();
-  const {experimentState,streak,lessons,goals}=useApp();
+  const {experimentState,streak,lessons,goals,premiumDecisionMade}=useApp();
+  const guide=useGuide();
   const navigate=useNavigate();
-  const notifications=deriveNotifications({experimentState,streak,lessons,goals});
+  // Tras una decisión sobre Premium (aceptar o rechazar) ya no se invita a "conocer Premium".
+  const notifications=deriveNotifications({experimentState,streak,lessons,goals})
+    .filter(n=>!(n.id==='premium_available'&&premiumDecisionMade));
   const readKey=`finpath_notifications_read_${user?.id||'anon'}`;
   const [version,setVersion]=useState(0);
   let read=[];
@@ -57,15 +63,17 @@ export default function AppShell({ children }) {
           </div>
         )}
 
-        <div className="app-content">{children}</div>
-        <nav className="bottom-nav" aria-label="Navegación principal">
+        <div className={`app-content${guide?.barVisible&&!hideNav?' with-guide':''}`}>{children}</div>
+        {!hideNav&&<GuideWelcome/>}
+        {!hideNav&&<GuideBar/>}
+        {!hideNav&&<nav className="bottom-nav" aria-label="Navegación principal">
           {nav.map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === "/app"} className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
               <Icon size={21} strokeWidth={2.2} />
               <span>{label}</span>
             </NavLink>
           ))}
-        </nav>
+        </nav>}
       </main>
     </div>
   );

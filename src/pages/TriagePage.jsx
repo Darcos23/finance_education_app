@@ -14,6 +14,7 @@ export default function TriagePage() {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   if (triage?.completed_at) return <Navigate to="/app" replace />;
 
@@ -22,16 +23,18 @@ export default function TriagePage() {
   const next = async () => {
     if (!selected) return;
     if (index < TRIAGE_QUESTIONS.length - 1) return setIndex(index + 1);
-    setBusy(true);
+    setBusy(true); setError("");
     try {
       await appService.saveTriage(user, answers);
       await refresh();
       navigate("/app", { replace:true });
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar tu diagnóstico. Revisa tu conexión e inténtalo de nuevo.");
     } finally { setBusy(false); }
   };
 
   return (
-    <AppShell>
+    <AppShell hideNav>
       <span className="eyebrow">Diagnóstico inicial</span>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:10}}>
         <h1 className="page-title" style={{fontSize:"1.8rem"}}>{q.question}</h1>
@@ -44,6 +47,7 @@ export default function TriagePage() {
           <button key={opt.id} type="button" className={`question-option ${selected===opt.id ? "selected":""}`} onClick={()=>setAnswers({...answers,[q.id]:opt.id})}>{opt.label}</button>
         ))}
       </div>
+      {error && <div className="error-box" style={{marginTop:12}}>{error}</div>}
       <div style={{display:"grid",gridTemplateColumns:index ? "1fr 2fr":"1fr",gap:10,marginTop:16}}>
         {index>0 && <button className="btn btn-secondary" onClick={()=>setIndex(index-1)}><ArrowLeft size={18}/> Atrás</button>}
         <button className="btn btn-primary" disabled={!selected || busy} onClick={next}>{index===TRIAGE_QUESTIONS.length-1 ? (busy?"Guardando…":"Ver mi ruta") : "Continuar"} <ArrowRight size={18}/></button>
