@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, RotateCcw } from "lucide-react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import { ADAPTIVE_PRACTICE, GOAL_TEMPLATES, LEARNING_PATHS, LESSON_ANSWER_KEYS } from "../data";
 import { useAuth } from "../context/AuthContext";
@@ -26,8 +26,9 @@ export default function LessonPage() {
   const [adaptiveSelected,setAdaptiveSelected]=useState(null);
   const [adaptiveDone,setAdaptiveDone]=useState(false);
   const [busy,setBusy]=useState(false);
-  const [createdAction,setCreatedAction]=useState(false);
+  const [actionChoice,setActionChoice]=useState(null);
   const [message,setMessage]=useState("");
+  const actionLock=useRef(false);
 
   // Hooks van ANTES del return condicional. No degrada una lección finalizada.
   useEffect(()=>{
@@ -70,22 +71,13 @@ export default function LessonPage() {
     setAnswered(true);if(correct)setCorrectCount(c=>c+1);else await onWrong();
     await analytics.once('lesson_question_answered',{user,objectType:'lesson_step',objectId:step.id,properties:{correct,skill_tag:step.skillTag}});
   };
-  const createActionGoal=async(templateId)=>{
-    if(busy)return;
-    const template=GOAL_TEMPLATES.find(t=>t.id===templateId);
-    if(!template)return;
-    if(goals.some(g=>g.template_id===template.id && g.status==='active'))return;
-    setBusy(true);setMessage('');
-    try{await appService.createGoalFromTemplate(user,template,'lesson');setCreatedAction(true);await refresh();setMessage('Meta creada. Puedes continuar.');}
-    catch(e){setMessage(e.message||'No se pudo crear la meta.');}
-    finally{setBusy(false);}
-  };
-  const finish=async()=>{
+  // redirectTo (opcional): adónde ir DESPUÉS de guardar. El guardado, lesson_completed y refresh() no cambian.
+  const finish=async(redirectTo)=>{
     setBusy(true);
     try{
       await appService.upsertLessonProgress(user,{lessonId:item.id,pathId:path.id,status:'completed',currentStep:item.steps.length-1,score:correctCount,errorTags:errors});
       await analytics.once('lesson_completed',{user,objectType:'lesson',objectId:item.id,properties:{errors_count:errors.length,adaptive_used:Boolean(adaptive)}});
-      await refresh();navigate(`/path/${path.id}`,{replace:true});
+      await refresh();navigate(typeof redirectTo==='string'&&redirectTo?redirectTo:`/path/${path.id}`,{replace:true});
     }catch(e){setMessage(e.message||'No se pudo guardar el progreso.');}
     finally{setBusy(false);}
   };
@@ -93,11 +85,28 @@ export default function LessonPage() {
     if(step.type==='question' && !answered)return evaluateQuestion();
     if(step.type==='classify' && !answered)return evaluateClassify();
     if(wrongAnswer&&adaptive&&!adaptiveDone)return;
-    if(step.type==='action' && !createdAction)await analytics.once('lesson_goal_suggestion_skipped',{user,objectType:'lesson',objectId:item.id});
     if(stepIndex===item.steps.length-1)return finish();
     setStepIndex(i=>i+1);setSelected(null);setClassifications({});setAnswered(false);
-    setAdaptive(null);setAdaptiveSelected(null);setAdaptiveDone(false);setCreatedAction(false);setMessage('');
+    setAdaptive(null);setAdaptiveSelected(null);setAdaptiveDone(false);setActionChoice(null);setMessage('');
     await appService.upsertLessonProgress(user,{lessonId:item.id,pathId:path.id,status:'started',currentStep:stepIndex+1,errorTags:errors});
+  };
+  // Paso "action": la meta se ofrece como idea y NUNCA se crea dentro de la lección (no interrumpe el progreso).
+  const isLastStep=stepIndex===item.steps.length-1;
+  const completeAction=async()=>{
+    if(busy||actionLock.current)return;
+    actionLock.current=true;
+    try{
+      await analytics.once('lesson_goal_suggestion_skipped',{user,objectType:'lesson',objectId:item.id});
+      await next();
+    }finally{actionLock.current=false;}
+  };
+  const completeAndCreateGoal=async()=>{
+    if(busy||actionLock.current||!actionChoice||!isLastStep)return;
+    actionLock.current=true;
+    try{
+      await analytics.once('lesson_goal_suggestion_accepted',{user,objectType:'lesson',objectId:item.id,properties:{template_id:actionChoice}});
+      await finish(`/goals/new?template=${encodeURIComponent(actionChoice)}&from=lesson`);
+    }finally{actionLock.current=false;}
   };
   const completeAdaptive=async()=>{
     if(!adaptiveSelected)return;
@@ -136,14 +145,15 @@ export default function LessonPage() {
           {classifications[i.id]===i.correctCategoryId?'Correcto. ':'La categoría correcta es '+step.categories.find(c=>c.id===i.correctCategoryId)?.label+'. '}{i.feedback}</p>}
       </div>)}
       {step.type==='action' && <>
-        {step.options?.map(opt=>{
-          const template=GOAL_TEMPLATES.find(t=>t.id===opt.id);
-          const existing=goals.find(g=>g.template_id===opt.id&&g.status==='active');
-          return <div key={opt.id} style={{marginTop:12}}>{existing
-            ? <Link className="btn btn-secondary btn-block" to={`/goals/${existing.id}`}>Ya tienes esta meta activa · Ver meta</Link>
-            : <button className="btn btn-secondary btn-block" disabled={busy||createdAction||!template} onClick={()=>createActionGoal(opt.id)}>Crear esta meta: {opt.label}</button>}</div>;
+        {step.options?.filter(opt=>GOAL_TEMPLATES.some(t=>t.id===opt.id)).map(opt=>{
+          const existing=goals.some(g=>g.template_id===opt.id&&g.status==='active');
+          return <button key={opt.id} type="button" className={`question-option ${actionChoice===opt.id?'selected':''}`}
+            aria-pressed={actionChoice===opt.id} disabled={busy}
+            onClick={()=>setActionChoice(c=>c===opt.id?null:opt.id)}>
+            {opt.label}{existing&&<span className="tag tag-green" style={{marginLeft:8}}>Ya la tienes</span>}
+          </button>;
         })}
-        <p className="form-note" style={{marginTop:12}}>Crear una meta es opcional; puedes terminar la lección sin crearla.</p>
+        <p className="form-note" style={{marginTop:12}}>Opcional: puedes terminar sin crear una meta.</p>
       </>}
       {message&&<p className="info-box" style={{marginTop:12}}>{message}</p>}
       {answered && (step.type==='question'||step.type==='classify') &&
@@ -160,9 +170,17 @@ export default function LessonPage() {
       {!adaptiveDone?<button className="btn btn-yellow btn-block" style={{marginTop:12}} disabled={!adaptiveSelected} onClick={completeAdaptive}>Comprobar refuerzo</button>
         :<p className="info-box">{adaptive.insight}</p>}
     </div>}
+    {step.type==='action' ? <>
+      <button className="btn btn-primary btn-block" style={{marginTop:16}} disabled={busy} onClick={completeAction}>
+        {isLastStep?(busy?'Guardando…':'Completar lección'):'Continuar'} <ArrowRight size={18}/>
+      </button>
+      {isLastStep&&actionChoice&&<button className="btn btn-secondary btn-block" style={{marginTop:10}} disabled={busy} onClick={completeAndCreateGoal}>
+        Completar y crear esta meta
+      </button>}
+    </> :
     <button className="btn btn-primary btn-block" style={{marginTop:16}} disabled={disabled} onClick={next}>
-      {step.type==='action'&&!createdAction?'Ahora no · Continuar':step.type==='question'&&!answered||step.type==='classify'&&!answered?'Comprobar':
+      {step.type==='question'&&!answered||step.type==='classify'&&!answered?'Comprobar':
         stepIndex===item.steps.length-1?(busy?'Guardando…':'Completar lección'):'Continuar'} <ArrowRight size={18}/>
-    </button>
+    </button>}
   </AppShell>;
 }
