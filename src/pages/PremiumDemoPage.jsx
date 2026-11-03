@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
 import { analytics } from "../lib/analytics";
 import {
-  GROUP_COLORS, PREFILL_LABELS, RADIOGRAPHY_FIELDS, buildPrefill, computeRadiography, money, validateRadiography,
+  GROUP_COLORS, PREFILL_LABELS, RADIOGRAPHY_FIELDS, buildPrefill, computeRadiography, fillWithExample, money, validateRadiography,
 } from "../lib/radiography";
 
 const acceptLabel = `Quiero Premium por $${PREMIUM_CONFIG.monthlyPrice.toLocaleString("es-CO")}/mes`;
@@ -120,6 +120,8 @@ export default function PremiumDemoPage() {
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Campos que se llenaron con datos de ejemplo y la persona no ha editado.
+  const [exampleKeys, setExampleKeys] = useState([]);
   const lock = useRef(false);
 
   useEffect(() => {
@@ -141,7 +143,8 @@ export default function PremiumDemoPage() {
     try {
       // NUNCA se envían montos: solo categorías de resultado y cuántos campos venían pre-llenados.
       await analytics.once("premium_demo_completed", {
-        user, properties: { ...computed.eventProperties, prefilled_fields: Object.keys(prefill.values).length },
+        user, properties: { ...computed.eventProperties, prefilled_fields: Object.keys(prefill.values).length,
+          example_data: exampleKeys.length > 0, example_fields: exampleKeys.length },
       });
       await refresh();
     } finally { setBusy(false); }
@@ -172,25 +175,45 @@ export default function PremiumDemoPage() {
     <AppShell>
       {header}
       <p className="page-subtitle">Esta es tu muestra gratuita de una sola vez. Con Premium podrías actualizarla cada mes.</p>
+      {exampleKeys.length > 0 && <div className="warning-box">Algunos valores son de ejemplo ({exampleKeys.length} de {RADIOGRAPHY_FIELDS.length}). Con tus datos reales el resultado sería tuyo.</div>}
       <Result r={result} />
       {busy ? <p className="form-note" style={{ textAlign: "center" }}>Guardando…</p>
         : <PremiumDecision stage="after_demo" entry="demo" acceptLabel={acceptLabel} />}
     </AppShell>
   );
 
-  const set = (key, value) => setValues((current) => ({ ...current, [key]: value }));
+  const set = (key, value) => {
+    setValues((current) => ({ ...current, [key]: value }));
+    setExampleKeys((keys) => keys.filter((k) => k !== key));
+  };
+  // Opcional: completa SOLO los campos vacíos; lo pre-llenado (simulador, metas) o escrito se conserva.
+  const fillExample = () => {
+    const { values: next, filled } = fillWithExample(values);
+    setValues(next);
+    setExampleKeys((keys) => [...new Set([...keys, ...filled])]);
+    setErrors({});
+  };
+  const emptyCount = RADIOGRAPHY_FIELDS.filter((f) => String(values[f.key] ?? "").trim() === "").length;
   return (
     <AppShell>
       {header}
       <p className="page-subtitle">Escribe montos mensuales aproximados en pesos. Solo el ingreso es obligatorio; lo que dejes vacío cuenta como 0. Puedes generarla una sola vez.</p>
       <form className="card card-pad" onSubmit={calculate} noValidate>
+        <div className="soft-card" style={{ marginBottom: 16 }}>
+          <strong>¿No tienes tus números a la mano?</strong>
+          <p className="form-note" style={{ margin: "4px 0 10px" }}>Completa los campos vacíos con datos de ejemplo de un estudiante. Lo que ya está lleno se conserva y puedes cambiar cualquier valor.</p>
+          <button type="button" className="btn btn-ghost btn-block" disabled={busy || emptyCount === 0} onClick={fillExample}>
+            {emptyCount === 0 ? "Todos los campos tienen valor" : `Usar datos de ejemplo (${emptyCount} ${emptyCount === 1 ? "campo vacío" : "campos vacíos"})`}
+          </button>
+        </div>
         {RADIOGRAPHY_FIELDS.map((f) => (
           <div className="field" key={f.key}>
             <label className="input-label" htmlFor={`rx-${f.key}`}>{f.label}{f.required ? " *" : ""}</label>
             <input id={`rx-${f.key}`} className="input" type="text" inputMode="numeric"
               autoComplete="off" placeholder="0" value={values[f.key] || ""}
               aria-invalid={Boolean(errors[f.key])} onChange={(e) => set(f.key, e.target.value)} />
-            {prefill.sources[f.key] && <div className="form-note" style={{ marginTop: 4 }}>{PREFILL_LABELS[prefill.sources[f.key]]} · puedes editarlo</div>}
+            {prefill.sources[f.key] && !exampleKeys.includes(f.key) && <div className="form-note" style={{ marginTop: 4 }}>{PREFILL_LABELS[prefill.sources[f.key]]} · puedes editarlo</div>}
+            {exampleKeys.includes(f.key) && <div className="form-note" style={{ marginTop: 4, color: "#8a6300" }}>Dato de ejemplo · puedes editarlo</div>}
             {errors[f.key] && <div className="form-note" style={{ color: "#9e2727", marginTop: 4 }}>{errors[f.key]}</div>}
           </div>
         ))}

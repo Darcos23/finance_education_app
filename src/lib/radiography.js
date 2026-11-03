@@ -17,6 +17,18 @@ export const RADIOGRAPHY_FIELDS = [
 export const FLEX_KEYS = ["food_out", "entertainment", "shopping"];
 export const GROUP_COLORS = { needs: "#003ea2", flex: "#449bfd", savings: "#fdbf04", available: "#72b6fd" };
 export const PREFILL_LABELS = { simulator: "Tomado de tu simulador", goal: "Según tu meta de límite" };
+// Datos de ejemplo (mensuales, COP) para agilizar la muestra. Solo llenan campos vacíos; nunca salen del navegador.
+export const EXAMPLE_VALUES = {
+  income: "1200000", housing: "350000", transport: "150000", groceries: "200000", debts: "80000",
+  food_out: "150000", entertainment: "60000", shopping: "100000", savings: "50000",
+};
+export function fillWithExample(values = {}) {
+  const next = { ...values }, filled = [];
+  Object.entries(EXAMPLE_VALUES).forEach(([key, example]) => {
+    if (String(values[key] ?? "").trim() === "") { next[key] = example; filled.push(key); }
+  });
+  return { values: next, filled };
+}
 
 const WEEKS_PER_MONTH = 4.33;
 // Categorías de las metas de límite (GoalFormPage escribe "Categoría: <etiqueta>. …") y plantillas equivalentes.
