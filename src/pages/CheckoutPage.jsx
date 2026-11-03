@@ -21,6 +21,8 @@ export default function CheckoutPage() {
   const [form,setForm]=useState({});
   const [done,setDone]=useState(false);
   const [busy,setBusy]=useState(false);
+  const [declining,setDeclining]=useState(false);
+  const [declineReason,setDeclineReason]=useState("");
 
   const detailsReady=useMemo(()=>{
     if(method==="card") return form.holder && form.card && form.exp && form.cvc;
@@ -62,6 +64,18 @@ export default function CheckoutPage() {
     } finally {setBusy(false);}
   };
 
+  const decline=async()=>{
+    setBusy(true);
+    try{
+      await appService.updateCheckout(user,attemptId,{status:'abandoned'});
+      await analytics.once('checkout_declined',{user,properties:{step,reason:declineReason}});
+      setForm({});navigate('/app');
+    }finally{setBusy(false);}
+  };
+  const declineOptions=[
+    ['price_high','Precio alto'],['not_now','No lo necesito ahora'],
+    ['trust','No confío en pagar en línea'],['more_free','Quiero probar más la versión gratis'],['other','Otro']
+  ];
   return <AppShell>
     <span className="eyebrow"><ShieldCheck size={14}/> Checkout</span>
     <h1 className="page-title">FinPath Premium</h1>
@@ -83,16 +97,16 @@ export default function CheckoutPage() {
       <h2 style={{marginTop:0}}>2. Completa datos</h2>
       {/* <p className="page-subtitle">Estos valores permanecen solo en esta pantalla y no se guardan ni se envían a la base de datos.</p> */}
       {method==="card"&&<>
-        <div className="field"><label className="input-label">Nombre</label><input className="input" value={form.holder||""} onChange={e=>setForm({...form,holder:e.target.value})} placeholder="Usuario Prueba" required/></div>
-        <div className="field"><label className="input-label">Número</label><input className="input" inputMode="numeric" value={form.card||""} onChange={e=>setForm({...form,card:e.target.value})} placeholder="4242 4242 4242 4242" required/></div>
+        <div className="field"><label className="input-label">Nombre</label><input autoComplete="off" name="fp_simulated_input" className="input" value={form.holder||""} onChange={e=>setForm({...form,holder:e.target.value})} placeholder="Usuario Prueba" required/></div>
+        <div className="field"><label className="input-label">Número</label><input autoComplete="off" name="fp_simulated_input" className="input" inputMode="numeric" value={form.card||""} onChange={e=>setForm({...form,card:e.target.value})} placeholder="0000 0000 0000 0000" required/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div className="field"><label className="input-label">Vence</label><input className="input" value={form.exp||""} onChange={e=>setForm({...form,exp:e.target.value})} placeholder="12/30" required/></div>
-          <div className="field"><label className="input-label">CVC</label><input className="input" value={form.cvc||""} onChange={e=>setForm({...form,cvc:e.target.value})} placeholder="123" required/></div>
+          <div className="field"><label className="input-label">Vence</label><input autoComplete="off" name="fp_simulated_input" className="input" value={form.exp||""} onChange={e=>setForm({...form,exp:e.target.value})} placeholder="12/30" required/></div>
+          <div className="field"><label className="input-label">CVC</label><input autoComplete="off" name="fp_simulated_input" className="input" value={form.cvc||""} onChange={e=>setForm({...form,cvc:e.target.value})} placeholder="123" required/></div>
         </div>
       </>}
-      {method==="nequi"&&<div className="field"><label className="input-label">Número</label><input className="input" inputMode="numeric" value={form.phone||""} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="300 000 0000" required/></div>}
+      {method==="nequi"&&<div className="field"><label className="input-label">Número</label><input autoComplete="off" name="fp_simulated_input" className="input" inputMode="numeric" value={form.phone||""} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="300 000 0000" required/></div>}
       {method==="pse"&&<>
-        <div className="field"><label className="input-label">Banco</label><select className="input" value={form.bank||""} onChange={e=>setForm({...form,bank:e.target.value})} required>
+        <div className="field"><label className="input-label">Banco</label><select autoComplete="off" name="fp_simulated_select" className="input" value={form.bank||""} onChange={e=>setForm({...form,bank:e.target.value})} required>
             <option value="">Selecciona</option>
             <option>Bancolombia</option>
             <option>Banco de Bogotá</option>
@@ -113,7 +127,7 @@ export default function CheckoutPage() {
             <option>Banco Mundo Mujer</option>
             <option>Bancamía</option>
           </select></div>
-        <div className="field"><label className="input-label">Tipo de persona</label><select className="input" value={form.personType||""} onChange={e=>setForm({...form,personType:e.target.value})} required><option value="">Selecciona</option><option>Natural</option><option>Jurídica</option></select></div>
+        <div className="field"><label className="input-label">Tipo de persona</label><select autoComplete="off" name="fp_simulated_select" className="input" value={form.personType||""} onChange={e=>setForm({...form,personType:e.target.value})} required><option value="">Selecciona</option><option>Natural</option><option>Jurídica</option></select></div>
       </>}
       <button className="btn btn-primary btn-block" disabled={busy||!detailsReady}>{busy?"Registrando etapa…":"Continuar a confirmación"}</button>
     </form>}
@@ -122,7 +136,7 @@ export default function CheckoutPage() {
       <h2 style={{marginTop:0}}>3. ¿Confirmarías la compra?</h2>
       {/* <p className="page-subtitle">Si esto fuera la versión comercial, el siguiente botón enviaría el pago de <strong>$9.000 COP</strong>. En esta prueba no procesará dinero.</p> */}
       <button className="btn btn-yellow btn-block" disabled={busy} onClick={confirm}>{busy?"Registrando…":"Sí, finalizaría la compra por $9.000"}</button>
-      <button className="btn btn-secondary btn-block" style={{marginTop:10}} onClick={()=>navigate("/app")}>No, volver a FinPath Free</button>
+      <button className="btn btn-secondary btn-block" style={{marginTop:10}} onClick={()=>setDeclining(true)}>No, volver a FinPath Free</button>
     </div>}
 
     {done&&<div className="card card-pad">

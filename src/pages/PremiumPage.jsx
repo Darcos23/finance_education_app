@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Crown, LockKeyhole } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import { PREMIUM_CONFIG } from "../data";
 import { useAuth } from "../context/AuthContext";
@@ -12,11 +12,12 @@ export default function PremiumPage() {
   const { user } = useAuth();
   const { experimentState, refresh } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [busy, setBusy] = useState(false);
   const unlocked = Boolean(experimentState?.minimum_journey_completed_at);
 
   useEffect(() => {
-    if (unlocked && user) analytics.once("premium_offer_viewed", { user });
+    if (unlocked && user) analytics.once("premium_offer_viewed", { user, properties: {source:location.state?.source||"direct"} });
   }, [unlocked, user?.id]);
 
   const choosePremium = async () => {

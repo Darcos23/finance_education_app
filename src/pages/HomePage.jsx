@@ -1,49 +1,63 @@
 import { ArrowRight, BookOpen, Calculator, Flame, Target } from "lucide-react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import MinimumJourneyCard from "../components/experiment/MinimumJourneyCard";
 import ProgressBar from "../components/common/ProgressBar";
 import { LEARNING_PATHS } from "../data";
+import { useEffect } from "react";
+import SkillCheckCard from "../components/experiment/SkillCheckCard";
+import BenefitCheckinCard from "../components/experiment/BenefitCheckinCard";
+import { bogotaDay } from "../lib/streak";
 import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
 
 export default function HomePage() {
   const { user, profile } = useAuth();
-  const { triage, completedLessons, goals, experimentState, loadingData } = useApp();
-  if (!loadingData && !triage) return <Navigate to="/triage" replace />;
+  const { triage, completedLessons, goals, experimentState, loadingData, hydrated, dataError,
+    lessons,streak,skillChecks,benefitCheckins,sessionCount } = useApp();
+  const location=useLocation();
+  useEffect(()=>{
+    if(location.state?.scrollToPremium){
+      const id=requestAnimationFrame(()=>{
+        const card=document.getElementById('premium-card');
+        card?.scrollIntoView({behavior:'smooth',block:'center'});
+        card?.setAttribute('data-notification-highlight','true');
+        if(card){card.style.outline='3px solid #fdbf04';card.style.outlineOffset='4px';}
+        setTimeout(()=>{if(card){card.style.outline='';card.style.outlineOffset='';card.removeAttribute('data-notification-highlight');}},2000);
+      });
+      return ()=>cancelAnimationFrame(id);
+    }
+  },[location.state]);
+  if (dataError) return <AppShell><div className="error-box">No se pudo cargar FinPath: {dataError}. Revisa la conexión y la migración v5.</div></AppShell>;
+  if (hydrated && !loadingData && !triage) return <Navigate to="/triage" replace />;
 
   const name = profile?.full_name || user?.user_metadata?.full_name || "Hola";
   const firstName = name.split(" ")[0];
   const recommended = LEARNING_PATHS.find(p => triage?.recommended_path_ids?.includes(p.id)) || LEARNING_PATHS[0];
   const activeGoals = goals.filter(g => g.status === "active");
   const nextLesson = recommended?.lessons?.find(l => !completedLessons.some(c => c.lesson_id === l.id)) || recommended?.lessons?.[0];
-  const completionDays = [...new Set(completedLessons
-    .map((item) => item.completed_at?.slice(0, 10))
-    .filter(Boolean))]
-    .sort((a, b) => b.localeCompare(a));
-  let streak = 0;
-  if (completionDays.length) {
-    const cursor = new Date();
-    const today = cursor.toISOString().slice(0, 10);
-    const yesterday = new Date(cursor.getTime() - 86400000).toISOString().slice(0, 10);
-    if ([today, yesterday].includes(completionDays[0])) {
-      let expected = new Date(`${completionDays[0]}T12:00:00`);
-      for (const day of completionDays) {
-        if (day !== expected.toISOString().slice(0, 10)) break;
-        streak += 1;
-        expected = new Date(expected.getTime() - 86400000);
-      }
-    }
-  }
+  const errorCounts={};
+  lessons.forEach(l=>(l.error_tags||[]).forEach(tag=>{errorCounts[tag]=(errorCounts[tag]||0)+1;}));
+  const topSkill=Object.entries(errorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const focused=topSkill&&LEARNING_PATHS.flatMap(p=>p.lessons).find(l=>l.skillTags?.includes(topSkill)&&
+    !completedLessons.some(c=>c.lesson_id===l.id));
+  const nextRecommendedLesson=focused||nextLesson;
+  const start=experimentState?.registered_at||experimentState?.first_seen_at;
+  const today=bogotaDay();
+  const daysSince=Math.max(0,Math.floor((Date.parse(`${today}T12:00:00Z`)-Date.parse(`${start?bogotaDay(start):today}T12:00:00Z`))/86400000));
+  const checkinPeriod=Math.floor(daysSince/7);
+  const showCheckin=(daysSince>=3||sessionCount>=2)&&!benefitCheckins.some(c=>c.period_index===checkinPeriod);
+  const showPre=Boolean(triage)&&!skillChecks.some(c=>c.kind==='pre');
+  const showPost=completedLessons.length>=2&&!showPre&&!skillChecks.some(c=>c.kind==='post');
 
   return (
     <AppShell>
       <section className="hero-card">
         <span className="hero-chip">Tu siguiente paso</span>
         <h1 style={{margin:"12px 0 6px",fontSize:"1.9rem"}}>Hola, {firstName}.</h1>
-        <p style={{margin:"0 0 18px"}}>{nextLesson ? `Continúa con “${nextLesson.title}”.` : "Explora una ruta y conviértela en una acción concreta."}</p>
-        <Link className="btn btn-yellow" to={nextLesson ? `/lesson/${nextLesson.id}` : "/learn"}>
-          {nextLesson ? "Continuar aprendiendo" : "Explorar rutas"} <ArrowRight size={18}/>
+        <p style={{margin:"0 0 18px"}}>{nextRecommendedLesson ? `Continúa con “${nextRecommendedLesson.title}”.` : "Explora una ruta y conviértela en una acción concreta."}</p>
+        <Link className="btn btn-yellow" to={nextRecommendedLesson ? `/lesson/${nextRecommendedLesson.id}` : "/learn"}>
+          {nextRecommendedLesson ? "Continuar aprendiendo" : "Explorar rutas"} <ArrowRight size={18}/>
         </Link>
       </section>
 
@@ -51,7 +65,7 @@ export default function HomePage() {
       <div className="metric-grid">
         <div className="metric"><BookOpen size={19} color="#0068fb" style={{margin:"0 auto 5px"}}/><strong>{completedLessons.length}</strong><span>lecciones</span></div>
         <div className="metric"><Target size={19} color="#1ba86b" style={{margin:"0 auto 5px"}}/><strong>{activeGoals.length}</strong><span>metas activas</span></div>
-        <div className="metric"><Flame size={19} color="#f2a100" style={{margin:"0 auto 5px"}}/><strong>{streak}</strong><span>racha</span></div>
+        <div className="metric"><Flame size={19} color="#f2a100" style={{margin:"0 auto 5px"}}/><strong>{streak.current}</strong><span>{streak.hasToday?"racha · hoy cuenta":"racha · hoy pendiente"}</span></div>
       </div>
 
       <div className="section-head"><h2>Ruta recomendada</h2><Link to="/learn">Ver todas</Link></div>
@@ -74,9 +88,10 @@ export default function HomePage() {
         <div><strong>Prueba decisiones antes de la vida real</strong><div className="form-note">Ahorro, gastos, deuda y presupuesto con simuladores guiados.</div></div>
       </Link>
 
-      <div style={{marginTop:18}}>
-        <MinimumJourneyCard state={experimentState}/>
-      </div>
+      {showPre&&<SkillCheckCard kind="pre"/>}
+      {showPost&&<SkillCheckCard kind="post"/>}
+      {showCheckin&&<BenefitCheckinCard periodIndex={checkinPeriod}/>}
+      <div style={{marginTop:18}}><MinimumJourneyCard state={experimentState} source={location.state?.scrollToPremium?"notification":"home_card"}/></div>
     </AppShell>
   );
 }

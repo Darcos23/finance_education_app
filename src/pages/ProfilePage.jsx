@@ -3,10 +3,11 @@ import AppShell from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
 import { LEARNING_PATHS } from "../data";
+import { expenseInPeriod } from "../lib/goalPeriods";
 
 export default function ProfilePage(){
   const { user,profile,signOut }=useAuth();
-  const { triage,completedLessons,goals,experimentState }=useApp();
+  const { triage,completedLessons,goals,experimentState,streak,goalEntries }=useApp();
   const name=profile?.full_name||user?.user_metadata?.full_name||"Usuario FinPath";
   const completedIds = new Set(completedLessons.map((item) => item.lesson_id));
   const xp = LEARNING_PATHS.flatMap((path) => path.lessons)
@@ -15,11 +16,11 @@ export default function ProfilePage(){
   const activeGoals = goals.filter((goal) => goal.status === "active");
   const goalSignals = activeGoals.map((goal) => {
     if (goal.type === "expense_limit") {
-      const usage = Number(goal.target_amount || 0) > 0 ? Number(goal.current_amount || 0) / Number(goal.target_amount) : 0;
+      const usage = Number(goal.target_amount || 0) > 0 ? expenseInPeriod(goal,goalEntries) / Number(goal.target_amount) : 0;
       return usage >= .8 ? "risk" : "good";
     }
-    const target = ["saving_amount"].includes(goal.type) ? Number(goal.target_amount || 0) : Number(goal.target_value || 0);
-    const current = ["saving_amount"].includes(goal.type) ? Number(goal.current_amount || 0) : Number(goal.current_value || 0);
+    const target = ["saving_amount","debt_payoff"].includes(goal.type) ? Number(goal.target_amount || 0) : Number(goal.target_value || 0);
+    const current = ["saving_amount","debt_payoff"].includes(goal.type) ? Number(goal.current_amount || 0) : Number(goal.current_value || 0);
     return target > 0 && current / target >= .5 ? "good" : "neutral";
   });
   const riskCount = goalSignals.filter((signal) => signal === "risk").length;

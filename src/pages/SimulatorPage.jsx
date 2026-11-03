@@ -14,7 +14,7 @@ export default function SimulatorPage(){
   const { user }=useAuth(); const { refresh }=useApp();
   const [values,setValues]=useState({});
   const [result,setResult]=useState(null);
-  if(!sim) return <AppShell><div className="empty">Simulador no encontrado.</div></AppShell>;
+
 
   const set=(key,val)=>setValues(v=>({...v,[key]:val}));
   const calculate=async(e)=>{
@@ -59,6 +59,8 @@ export default function SimulatorPage(){
     if(simulatorId==="small_debt") return [["balance","Saldo de la deuda"],["payment","Cuota mensual"],["rate","Tasa anual estimada (%)"]];
     return [["income","Ingresos de la semana"],["fixed","Gastos necesarios"],["flexible","Gastos flexibles"],["savings","Ahorro o metas"]];
   },[simulatorId]);
+
+  if(!sim) return <AppShell><div className="empty">Simulador no encontrado.</div></AppShell>;
 
   return <AppShell>
     <span className="eyebrow"><Calculator size={14}/> Simulador guiado</span>
